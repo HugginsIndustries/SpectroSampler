@@ -44,8 +44,8 @@ class ProcessingSettings:
 
         # Denoise/preprocessing
         self.denoise: str = kwargs.get("denoise", "afftdn")
-        self.hp: float | None = kwargs.get("hp", 120.0)
-        self.lp: float | None = kwargs.get("lp", 6000.0)
+        self.hp: float | None = kwargs.get("hp", 20.0)
+        self.lp: float | None = kwargs.get("lp", 20000.0)
         self.nr: float = kwargs.get("nr", 12.0)
         self.analysis_sr: int = kwargs.get("analysis_sr", 16000)
         self.analysis_mid_only: bool = kwargs.get("analysis_mid_only", False)

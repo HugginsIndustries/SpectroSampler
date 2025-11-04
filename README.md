@@ -1,15 +1,33 @@
 # SamplePacker
 
-Turn long field recordings into usable sample packs (CLI first, GUI second).
+Turn long field recordings into usable sample packs with a modern GUI interface.
+
+**Note**: The GUI is now the primary interface. The CLI is deprecated but still available for batch processing.
 
 ## Features
 
+- **Modern GUI**: Dark theme with system integration, DAW-style timeline interface
+- **Interactive spectrogram**: Zoom, pan, and navigate through hour-long recordings
+- **Preview system**: See detected samples before exporting
+- **Sample editing**: Select, move, resize, and create samples visually on the spectrogram
+- **Grid snapping**: Free time or musical bar grid with tempo settings
+- **Frequency filtering**: High/low cut filters with real-time spectrogram updates
 - **Multiple detection modes**: Voice VAD, transient flux, non-silence energy, spectral interestingness
-- **Batch processing**: Process single files or entire directories
 - **High-quality output**: Preserve original quality by default (no re-encoding), with optional format conversion
-- **Comprehensive reports**: Spectrograms (PNG/MP4), timestamps CSV, markers (Audacity/REAPER), HTML reports
-- **Performance**: Streaming analysis for long files, caching, parallel batch processing
+- **Navigator scrollbar**: Bitwig-style overview with spectrogram preview
 - **Cross-platform**: Works on Windows and Linux
+
+## GUI Features
+
+- **Timeline ruler**: Time markers at the top showing seconds, minutes, hours
+- **Spectrogram view**: Interactive spectrogram with zoom (0.5x to 32x) and pan
+- **Navigator scrollbar**: Bottom overview showing entire file with current view indicator
+- **Sample markers**: Visual markers on spectrogram with drag-and-drop editing
+- **Grid system**: Free time or musical bar grid with configurable snapping
+- **Frequency filtering**: High/low cut filters update spectrogram display in real-time
+- **Settings panel**: All processing parameters in scrollable panel
+- **Sample table**: List of detected samples with checkboxes for export selection
+- **Resizable panels**: Click and drag edges to resize UI elements (DAW-style)
 
 ## Requirements
 
@@ -69,31 +87,78 @@ python -m ruff check samplepacker tests scripts
 
 ## Quick Start
 
-### Single File
+### GUI Application
+
+Launch the GUI application:
+
+```bash
+samplepacker-gui
+```
+
+Or:
+
+```bash
+python -m samplepacker.gui
+```
+
+1. **Open Audio File**: File → Open Audio File (or drag and drop)
+2. **Adjust Settings**: Configure detection mode, timing parameters, and filters in the settings panel
+3. **Update Preview**: Click "Update Preview" to process the audio and detect samples
+4. **Edit Samples**: Click and drag markers on the spectrogram to adjust samples
+5. **Export**: File → Export Samples to export selected samples
+
+### Keyboard Shortcuts
+
+- **Zoom In/Out**: `Ctrl++` / `Ctrl+-` or mouse wheel
+- **Pan**: Arrow keys or drag in navigator
+- **Play**: `Space` (double-click sample)
+- **Delete**: `Delete` key
+- **Snap Toggle**: `G` key
+
+### Legacy CLI (Deprecated)
+
+The CLI is still available but deprecated:
 
 ```bash
 samplepacker input.wav --out output_dir
 ```
 
-### Batch Processing
+## GUI Usage
 
-```bash
-samplepacker input_directory --out output_dir --batch --recurse
-```
+### Opening Files
 
-### Example with Custom Settings
+- **File Menu**: File → Open Audio File
+- **Drag and Drop**: Drag audio files onto the window
+- **Supported Formats**: WAV, FLAC, MP3, M4A, AAC
 
-```bash
-samplepacker recording.wav --out samples \
-  --mode auto \
-  --pre-ms 10000 \
-  --post-ms 10000 \
-  --max-samples 200 \
-  --format wav \
-  --spectrogram
-```
+### Navigation
 
-## CLI Options
+- **Zoom**: Mouse wheel (with Ctrl for fine control) or zoom controls
+- **Pan**: Click and drag in navigator scrollbar or use arrow keys
+- **Timeline**: Click on timeline ruler to jump to time position
+- **Navigator**: Click/drag in navigator to navigate, drag edges to resize view
+
+### Sample Editing
+
+- **Select**: Click on sample marker in spectrogram
+- **Move**: Click and drag sample marker
+- **Resize**: Click and drag left/right edges of sample marker
+- **Create**: Click and drag on empty spectrogram area
+- **Delete**: Select sample and press Delete key
+
+### Grid Snapping
+
+- **Free Time Mode**: Set snap interval (e.g., 0.1s, 1s)
+- **Musical Bar Mode**: Set BPM and subdivision (quarter, eighth, etc.)
+- **Toggle Snap**: Check/uncheck "Snap to grid" or press `G` key
+
+### Frequency Filtering
+
+- **High-pass Filter**: Set minimum frequency (Hz)
+- **Low-pass Filter**: Set maximum frequency (Hz)
+- **Real-time Update**: Spectrogram updates automatically when filters change
+
+## Legacy CLI Options (Deprecated)
 
 ### Detection Mode
 
