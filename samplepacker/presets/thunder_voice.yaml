@@ -1,0 +1,17 @@
+# Preset for detecting voice in thunder/rain recordings
+mode: auto
+threshold: auto
+denoise: afftdn
+hp: 120
+lp: 6000
+nr: 12
+pre_ms: 10000
+post_ms: 10000
+merge_gap_ms: 300
+min_dur_ms: 400
+max_dur_ms: 60000
+min_gap_ms: 0
+max_samples: 200
+analysis_sr: 16000
+spectrogram: true
+

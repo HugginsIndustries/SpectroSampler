@@ -1,0 +1,17 @@
+# Preset for detecting sharp transients in industrial recordings
+mode: transient
+threshold: auto
+denoise: afftdn
+hp: 80
+lp: 8000
+nr: 15
+pre_ms: 5000
+post_ms: 5000
+merge_gap_ms: 200
+min_dur_ms: 100
+max_dur_ms: 10000
+min_gap_ms: 100
+max_samples: 300
+analysis_sr: 16000
+spectrogram: true
+
