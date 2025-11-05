@@ -23,10 +23,10 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSplitter,
     QStatusBar,
-    QTableWidget,
-    QTableWidgetItem,
+    QTableView,
     QVBoxLayout,
     QWidget,
+    QStyle,
 )
 
 from samplepacker.detectors.base import Segment
@@ -41,6 +41,8 @@ from samplepacker.gui.spectrogram_tiler import SpectrogramTiler
 from samplepacker.gui.spectrogram_widget import SpectrogramWidget
 from samplepacker.gui.theme import ThemeManager
 from samplepacker.pipeline import ProcessingSettings
+from samplepacker.gui.sample_table_model import SampleTableModel
+from samplepacker.gui.sample_table_delegate import SampleTableDelegate
 
 logger = logging.getLogger(__name__)
 
@@ -218,24 +220,56 @@ class MainWindow(QMainWindow):
         splitter.addWidget(editor_splitter)
         splitter.setStretchFactor(1, 1)
 
-        # Sample list (bottom) - samples as columns, fields as rows
-        self._sample_table = QTableWidget()
-        # Rows: Enable, Center, Start, End, Duration, Detector, Play, Delete
-        self._sample_table.setRowCount(8)
-        self._sample_table.setVerticalHeaderLabels(["Enable", "Center", "Start", "End", "Duration", "Detector", "Play", "Delete"])
-        self._sample_table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectColumns)
-        self._sample_table.itemChanged.connect(self._on_sample_table_changed)
-        self._sample_table.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
-        self._sample_table.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
-        # Calculate height to fit all 8 rows: header + (8 rows * row height)
-        # Typical row height is ~30px, header is ~30px
-        table_height = self._sample_table.horizontalHeader().height() + (8 * 30) + 10
-        self._sample_table.setMinimumHeight(table_height)
+        # Sample list (bottom) - QTableView with model/delegate
+        self._sample_table_view = QTableView()
+        self._sample_table_model = SampleTableModel(self)
+        self._sample_table_view.setModel(self._sample_table_model)
+        self._sample_table_delegate = SampleTableDelegate(self)
+        self._sample_table_view.setItemDelegate(self._sample_table_delegate)
+        # Selection: columns
+        self._sample_table_view.setSelectionBehavior(QTableView.SelectionBehavior.SelectColumns)
+        self._sample_table_view.setSelectionMode(QTableView.SelectionMode.SingleSelection)
+        # Policies
+        self._sample_table_view.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAsNeeded)
+        self._sample_table_view.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        # Sizing: fixed column width and uniform row heights
+        try:
+            self._sample_table_view.verticalHeader().setDefaultSectionSize(30)
+        except Exception:
+            pass
+        fixed_col_width = 140
+        # Apply a default for first few columns; more columns will use the same width
+        try:
+            self._sample_table_view.horizontalHeader().setDefaultSectionSize(fixed_col_width)
+        except Exception:
+            pass
+        # Calculate height: header + 8 rows * 30 + scrollbar height + small margin
+        try:
+            scrollbar_h = self.style().pixelMetric(QStyle.PixelMetric.PM_ScrollBarExtent)
+        except Exception:
+            scrollbar_h = 18
+        table_height = self._sample_table_view.horizontalHeader().height() + (8 * 30) + scrollbar_h + 12
+        self._sample_table_view.setMinimumHeight(table_height)
+        # Wire delegate signals
+        self._sample_table_delegate.centerClicked.connect(self._on_center_clicked)
+        self._sample_table_delegate.fillClicked.connect(self._on_fill_clicked)
+        self._sample_table_delegate.playClicked.connect(self._on_sample_play_requested)
+        self._sample_table_delegate.deleteClicked.connect(self._on_sample_deleted)
+        # Model change signals to update other views
+        self._sample_table_model.enabledToggled.connect(self._on_model_enabled_toggled)
+        self._sample_table_model.timesEdited.connect(self._on_model_times_edited)
+        self._sample_table_model.durationEdited.connect(self._on_model_duration_edited)
+        # Keep spectrogram selection in sync when user selects a column
+        def on_selection_changed(_selected, _deselected):
+            idx = self._sample_table_view.currentIndex()
+            if idx.isValid():
+                self._on_sample_selected(idx.column())
+        self._sample_table_view.selectionModel().selectionChanged.connect(on_selection_changed)
 
         # Main vertical splitter for editor/sample table
         self._main_splitter = QSplitter(Qt.Orientation.Vertical)
         self._main_splitter.addWidget(splitter)
-        self._main_splitter.addWidget(self._sample_table)
+        self._main_splitter.addWidget(self._sample_table_view)
         self._main_splitter.setStretchFactor(0, 1)
         self._main_splitter.setStretchFactor(1, 0)
         self._main_splitter.setCollapsible(0, False)
@@ -746,9 +780,12 @@ class MainWindow(QMainWindow):
         Args:
             index: Sample index.
         """
-        # Update table selection (column-based now)
-        if self._sample_table.columnCount() > index:
-            self._sample_table.setCurrentCell(0, index)
+        # Update table selection (column-based)
+        try:
+            if self._sample_table_model.columnCount() > index:
+                self._sample_table_view.setCurrentIndex(self._sample_table_model.index(0, index))
+        except Exception:
+            pass
         self._spectrogram_widget.set_selected_index(index)
         
         # Don't update player widget - player should only show info for currently playing sample
@@ -767,20 +804,8 @@ class MainWindow(QMainWindow):
             old_end = seg.end
             seg.start = start
             seg.end = end
-            # Fast path: update only the edited column cells to avoid full table rebuild
-            try:
-                self._sample_table.blockSignals(True)
-                start_item = self._sample_table.item(2, index)
-                if start_item:
-                    start_item.setText(f"{seg.start:.3f}")
-                end_item = self._sample_table.item(3, index)
-                if end_item:
-                    end_item.setText(f"{seg.end:.3f}")
-                duration_item = self._sample_table.item(4, index)
-                if duration_item:
-                    duration_item.setText(f"{seg.duration():.3f}")
-            finally:
-                self._sample_table.blockSignals(False)
+            # Fast path: notify model for this column only
+            self._sample_table_model.update_segment_times(index, seg.start, seg.end)
 
             self._maybe_auto_reorder()
             # Update overlays only in spectrogram; no tile requests
@@ -837,20 +862,8 @@ class MainWindow(QMainWindow):
             old_end = seg.end
             seg.start = start
             seg.end = end
-            # Fast path: update only the edited column cells to avoid full table rebuild
-            try:
-                self._sample_table.blockSignals(True)
-                start_item = self._sample_table.item(2, index)
-                if start_item:
-                    start_item.setText(f"{seg.start:.3f}")
-                end_item = self._sample_table.item(3, index)
-                if end_item:
-                    end_item.setText(f"{seg.end:.3f}")
-                duration_item = self._sample_table.item(4, index)
-                if duration_item:
-                    duration_item.setText(f"{seg.duration():.3f}")
-            finally:
-                self._sample_table.blockSignals(False)
+            # Fast path: notify model for this column only
+            self._sample_table_model.update_segment_times(index, seg.start, seg.end)
 
             self._maybe_auto_reorder()
             # Update overlays only in spectrogram; no tile requests
@@ -1175,13 +1188,14 @@ class MainWindow(QMainWindow):
         if not self._pipeline_wrapper or not self._pipeline_wrapper.current_segments:
             return
         
-        current_col = self._sample_table.currentColumn()
+        idx = self._sample_table_view.currentIndex()
+        current_col = idx.column() if idx.isValid() else -1
         if current_col < 0:
             current_col = 0
         
         next_col = min(current_col + 1, len(self._pipeline_wrapper.current_segments) - 1)
         if next_col != current_col:
-            self._sample_table.setCurrentCell(0, next_col)
+            self._sample_table_view.setCurrentIndex(self._sample_table_model.index(0, next_col))
             self._on_sample_selected(next_col)
 
     def _on_player_previous_requested(self) -> None:
@@ -1189,13 +1203,14 @@ class MainWindow(QMainWindow):
         if not self._pipeline_wrapper or not self._pipeline_wrapper.current_segments:
             return
         
-        current_col = self._sample_table.currentColumn()
+        idx = self._sample_table_view.currentIndex()
+        current_col = idx.column() if idx.isValid() else -1
         if current_col < 0:
             current_col = len(self._pipeline_wrapper.current_segments) - 1
         
         prev_col = max(0, current_col - 1)
         if prev_col != current_col:
-            self._sample_table.setCurrentCell(0, prev_col)
+            self._sample_table_view.setCurrentIndex(self._sample_table_model.index(0, prev_col))
             self._on_sample_selected(prev_col)
 
     def _on_player_loop_changed(self, enabled: bool) -> None:
@@ -1246,179 +1261,9 @@ class MainWindow(QMainWindow):
             if self._is_paused:
                 self._paused_position = position_ms
 
-    def _on_sample_table_changed(self, item: QTableWidgetItem) -> None:
-        """Handle sample table change.
-
-        Args:
-            item: Changed item.
-        """
-        try:
-            row = item.row()
-            col = item.column()
-        except Exception:
-            return
-        
-        if not self._pipeline_wrapper:
-            return
-            
-        segments = self._pipeline_wrapper.current_segments
-        if not (0 <= col < len(segments)):
-            return
-            
-        seg = segments[col]
-        
-        # Row 0: Enable checkbox
-        if row == 0:
-            enabled = item.checkState() == Qt.CheckState.Checked
-            if not hasattr(seg, "attrs") or seg.attrs is None:
-                seg.attrs = {}
-            seg.attrs["enabled"] = enabled
-            # Refresh views using enabled filter
-            self._spectrogram_widget.set_segments(self._get_display_segments())
-            self._update_navigator_markers()
-        
-        # Row 2: Start time
-        elif row == 2:
-            try:
-                new_start = float(item.text())
-                lock_on = (
-                    getattr(self, "_lock_duration_on_start_edit_action", None)
-                    and self._lock_duration_on_start_edit_action.isChecked()
-                )
-                audio_duration = getattr(self._spectrogram_widget, "_duration", float("inf"))
-
-                if lock_on:
-                    # With Lock Duration ON, allow moving start anywhere (>=0) and move end to preserve duration
-                    if new_start >= 0:
-                        old_duration = max(0.01, seg.end - seg.start)
-                        # Clamp start to within audio bounds (leave at least 0.01s window)
-                        clamped_start = max(0.0, min(new_start, max(0.0, audio_duration - 0.01)))
-                        seg.start = clamped_start
-                        proposed_end = seg.start + old_duration
-                        seg.end = max(seg.start + 0.01, min(audio_duration, proposed_end))
-
-                        # Block signals to prevent recursion
-                        self._sample_table.blockSignals(True)
-                        try:
-                            item.setText(f"{seg.start:.3f}")
-                            end_item = self._sample_table.item(3, col)
-                            if end_item:
-                                end_item.setText(f"{seg.end:.3f}")
-                            duration_item = self._sample_table.item(4, col)
-                            if duration_item:
-                                duration_item.setText(f"{seg.duration():.3f}")
-                        finally:
-                            self._sample_table.blockSignals(False)
-
-                        # Refresh views (without updating table again)
-                        self._maybe_auto_reorder()
-                        self._spectrogram_widget.set_segments(self._get_display_segments())
-                        self._update_navigator_markers()
-                    else:
-                        # Invalid value, restore previous
-                        self._sample_table.blockSignals(True)
-                        try:
-                            item.setText(f"{seg.start:.3f}")
-                        finally:
-                            self._sample_table.blockSignals(False)
-                else:
-                    # Lock Duration OFF: enforce start < end as before
-                    if new_start >= 0 and new_start < seg.end:
-                        seg.start = new_start
-                        # Block signals to prevent recursion
-                        self._sample_table.blockSignals(True)
-                        try:
-                            item.setText(f"{seg.start:.3f}")
-                            duration_item = self._sample_table.item(4, col)
-                            if duration_item:
-                                duration_item.setText(f"{seg.duration():.3f}")
-                        finally:
-                            self._sample_table.blockSignals(False)
-                        # Refresh views (without updating table again)
-                        self._maybe_auto_reorder()
-                        self._spectrogram_widget.set_segments(self._get_display_segments())
-                        self._update_navigator_markers()
-                    else:
-                        # Invalid value, restore previous
-                        self._sample_table.blockSignals(True)
-                        try:
-                            item.setText(f"{seg.start:.3f}")
-                        finally:
-                            self._sample_table.blockSignals(False)
-            except ValueError:
-                # Invalid text, restore previous
-                self._sample_table.blockSignals(True)
-                try:
-                    item.setText(f"{seg.start:.3f}")
-                finally:
-                    self._sample_table.blockSignals(False)
-        
-        # Row 3: End time
-        elif row == 3:
-            try:
-                new_end = float(item.text())
-                # Validate: must be > current start and <= duration
-                audio_duration = self._spectrogram_widget._duration if hasattr(self._spectrogram_widget, '_duration') else float('inf')
-                if new_end > seg.start and new_end <= audio_duration:
-                    old_end = seg.end
-                    seg.end = new_end
-                    # Block signals to prevent recursion
-                    self._sample_table.blockSignals(True)
-                    try:
-                        # Update table to reflect any clamping
-                        item.setText(f"{seg.end:.3f}")
-                        # Update duration cell
-                        duration_item = self._sample_table.item(4, col)
-                        if duration_item:
-                            duration_item.setText(f"{seg.duration():.3f}")
-                    finally:
-                        self._sample_table.blockSignals(False)
-                    # Refresh views (without updating table again)
-                    self._maybe_auto_reorder()
-                    self._spectrogram_widget.set_segments(self._get_display_segments())
-                    self._update_navigator_markers()
-                else:
-                    # Invalid value, restore previous
-                    self._sample_table.blockSignals(True)
-                    try:
-                        item.setText(f"{seg.end:.3f}")
-                    finally:
-                        self._sample_table.blockSignals(False)
-            except ValueError:
-                # Invalid text, restore previous
-                self._sample_table.blockSignals(True)
-                try:
-                    item.setText(f"{seg.end:.3f}")
-                finally:
-                    self._sample_table.blockSignals(False)
-        
-        # Row 4: Duration
-        elif row == 4:
-            try:
-                new_duration = float(item.text())
-                # Validate: must be > 0
-                if new_duration > 0:
-                    # Apply duration change based on selected mode
-                    # (this already blocks signals internally)
-                    self._apply_duration_change(seg, new_duration, col)
-                    # Refresh views (without updating table again)
-                    self._maybe_auto_reorder()
-                    self._spectrogram_widget.set_segments(self._get_display_segments())
-                    self._update_navigator_markers()
-                else:
-                    # Invalid value, restore previous
-                    self._sample_table.blockSignals(True)
-                    try:
-                        item.setText(f"{seg.duration():.3f}")
-                    finally:
-                        self._sample_table.blockSignals(False)
-            except ValueError:
-                # Invalid text, restore previous
-                self._sample_table.blockSignals(True)
-                try:
-                    item.setText(f"{seg.duration():.3f}")
-                finally:
-                    self._sample_table.blockSignals(False)
+    def _on_sample_table_changed(self, item):
+        # Legacy handler removed with model/view refactor
+        return
 
     def _on_play_button_clicked(self, index: int) -> None:
         """Handle play button click.
@@ -1475,80 +1320,13 @@ class MainWindow(QMainWindow):
         self._navigator.set_view_range(desired_start, desired_end)
 
     def _update_sample_table(self, segments: list[Segment]) -> None:
-        """Update sample table.
-
-        Args:
-            segments: List of segments.
-        """
-        self._sample_table.setColumnCount(len(segments))
-        
-        # Set column headers to sample IDs
-        column_headers = [str(i) for i in range(len(segments))]
-        self._sample_table.setHorizontalHeaderLabels(column_headers)
-
-        for i, seg in enumerate(segments):
-            # Ensure enabled flag exists (default True)
+        """Update sample table model with new segments."""
+        # Ensure enabled flag exists
+        for seg in segments:
             if not hasattr(seg, "attrs") or seg.attrs is None:
                 seg.attrs = {}
-            if "enabled" not in seg.attrs:
-                seg.attrs["enabled"] = True
-
-            # Enable checkbox (row 0)
-            checkbox = QTableWidgetItem()
-            checkbox.setCheckState(Qt.CheckState.Checked if seg.attrs.get("enabled", True) else Qt.CheckState.Unchecked)
-            checkbox.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self._sample_table.setItem(0, i, checkbox)
-
-            # Center/Fill composite cell (row 1)
-            from PySide6.QtWidgets import QWidget as _QW, QHBoxLayout as _QHBox
-            cell = _QW()
-            layout = _QHBox()
-            layout.setContentsMargins(2, 2, 2, 2)
-            layout.setSpacing(6)
-            center_button = QPushButton("Center")
-            center_button.clicked.connect(lambda checked, idx=i: self._on_center_clicked(idx))
-            fill_button = QPushButton("Fill")
-            fill_button.clicked.connect(lambda checked, idx=i: self._on_fill_clicked(idx))
-            layout.addWidget(center_button)
-            layout.addWidget(fill_button)
-            cell.setLayout(layout)
-            self._sample_table.setCellWidget(1, i, cell)
-
-            # Start (row 2) - editable
-            start_item = QTableWidgetItem(f"{seg.start:.3f}")
-            start_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            start_item.setFlags(start_item.flags() | Qt.ItemFlag.ItemIsEditable)
-            self._sample_table.setItem(2, i, start_item)
-
-            # End (row 3) - editable
-            end_item = QTableWidgetItem(f"{seg.end:.3f}")
-            end_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            end_item.setFlags(end_item.flags() | Qt.ItemFlag.ItemIsEditable)
-            self._sample_table.setItem(3, i, end_item)
-
-            # Duration (row 4) - editable
-            duration_item = QTableWidgetItem(f"{seg.duration():.3f}")
-            duration_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            duration_item.setFlags(duration_item.flags() | Qt.ItemFlag.ItemIsEditable)
-            self._sample_table.setItem(4, i, duration_item)
-
-            # Detector (row 5)
-            detector_item = QTableWidgetItem(seg.detector)
-            detector_item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
-            self._sample_table.setItem(5, i, detector_item)
-
-            # Play button (row 6)
-            play_button = QPushButton("▶")
-            play_button.clicked.connect(lambda checked, idx=i: self._on_play_button_clicked(idx))
-            self._sample_table.setCellWidget(6, i, play_button)
-
-            # Delete button (row 7)
-            delete_button = QPushButton("×")
-            delete_button.clicked.connect(lambda checked, idx=i: self._on_delete_button_clicked(idx))
-            self._sample_table.setCellWidget(7, i, delete_button)
-
-        # Auto-resize columns to fit content
-        self._sample_table.resizeColumnsToContents()
+            seg.attrs.setdefault("enabled", True)
+        self._sample_table_model.set_segments(segments)
 
     def _on_zoom_in(self) -> None:
         """Handle zoom in."""
@@ -1674,13 +1452,12 @@ class MainWindow(QMainWindow):
             seg = self._pipeline_wrapper.current_segments[index]
             if not hasattr(seg, "attrs") or seg.attrs is None:
                 seg.attrs = {}
-            seg.attrs["enabled"] = not (not disabled) if False else (not disabled)  # keep explicit assignment
-            seg.attrs["enabled"] = (not disabled) is False and False or (not disabled)  # overwrite to ensure bool
             seg.attrs["enabled"] = (False if disabled else True)
-            # Sync table checkbox
-            item = self._sample_table.item(0, index)
-            if item:
-                item.setCheckState(Qt.CheckState.Checked if seg.attrs["enabled"] else Qt.CheckState.Unchecked)
+            # Notify model
+            try:
+                self._sample_table_model.setData(self._sample_table_model.index(0, index), Qt.Checked if seg.attrs["enabled"] else Qt.Unchecked, Qt.CheckStateRole)
+            except Exception:
+                pass
             self._spectrogram_widget.set_segments(self._get_display_segments())
             self._update_navigator_markers()
 
@@ -1692,10 +1469,10 @@ class MainWindow(QMainWindow):
             if not hasattr(s, "attrs") or s.attrs is None:
                 s.attrs = {}
             s.attrs["enabled"] = (i == index)
-            # Sync table checkbox
-            item = self._sample_table.item(0, i)
-            if item:
-                item.setCheckState(Qt.CheckState.Checked if s.attrs["enabled"] else Qt.CheckState.Unchecked)
+            try:
+                self._sample_table_model.setData(self._sample_table_model.index(0, i), Qt.Checked if s.attrs["enabled"] else Qt.Unchecked, Qt.CheckStateRole)
+            except Exception:
+                pass
         self._spectrogram_widget.set_segments(self._get_display_segments())
         self._update_navigator_markers()
 
@@ -1709,11 +1486,13 @@ class MainWindow(QMainWindow):
         output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
 
         if output_dir:
-            # Get selected indices (checkboxes are in row 0, one per column)
+            # Get selected indices (row 0 checkboxes represented by segment enabled flag)
             selected_indices = []
-            for i in range(self._sample_table.columnCount()):
-                item = self._sample_table.item(0, i)
-                if item and item.checkState() == Qt.CheckState.Checked:
+            for i, seg in enumerate(self._pipeline_wrapper.current_segments):
+                enabled = True
+                if hasattr(seg, "attrs") and seg.attrs is not None:
+                    enabled = seg.attrs.get("enabled", True)
+                if enabled:
                     selected_indices.append(i)
 
             if not selected_indices:
@@ -1859,6 +1638,28 @@ class MainWindow(QMainWindow):
             "spectral_interestingness": QColor(0x66, 0xAA, 0xFF),
         }
         return color_map.get(detector, QColor(0xFF, 0xFF, 0xFF))
+
+    # Model-view callbacks
+    def _on_model_enabled_toggled(self, column: int, enabled: bool) -> None:
+        # Reflect enabled update into other views
+        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._update_navigator_markers()
+
+    def _on_model_times_edited(self, column: int, start: float, end: float) -> None:
+        # After start/end edits, reorder and refresh overlays
+        self._maybe_auto_reorder()
+        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._update_navigator_markers()
+
+    def _on_model_duration_edited(self, column: int, new_duration: float) -> None:
+        if not self._pipeline_wrapper or not (0 <= column < len(self._pipeline_wrapper.current_segments)):
+            return
+        seg = self._pipeline_wrapper.current_segments[column]
+        # Apply duration change according to current mode
+        self._apply_duration_change(seg, new_duration, column)
+        self._maybe_auto_reorder()
+        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._update_navigator_markers()
 
     def _get_enabled_segments(self) -> list[Segment]:
         """Return only enabled segments from current pipeline wrapper.
