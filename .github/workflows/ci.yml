@@ -32,7 +32,11 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y \
             libegl1 \
+            libegl1-mesa \
             libgl1 \
+            libgl1-mesa-dri \
+            libglx-mesa0 \
+            libopengl0 \
             libxkbcommon0 \
             libxkbcommon-x11-0 \
             libxcb1 \
@@ -92,6 +96,7 @@ jobs:
       - name: Test executable
         env:
           QT_QPA_PLATFORM: offscreen
+          QT_OPENGL: software
         run: |
           ./dist/samplepacker-gui --help
 
