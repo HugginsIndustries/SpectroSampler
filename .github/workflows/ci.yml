@@ -53,7 +53,7 @@ jobs:
             libxrender1 \
             libxext6 \
             libxi6 \
-            libtiff5
+            libtiff6
       
       - name: Install dependencies
         run: |
