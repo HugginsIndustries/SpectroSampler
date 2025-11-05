@@ -530,7 +530,12 @@ class SpectrogramWidget(QWidget):
                 return
             freq_min = freq[0]
             freq_max = freq[-1]
-            extent = (float(tile.start_time), float(tile.end_time), float(freq_min), float(freq_max))
+            extent = (
+                float(tile.start_time),
+                float(tile.end_time),
+                float(freq_min),
+                float(freq_max),
+            )
             # Prefer precolored RGBA if present
             if getattr(tile, "rgba", None) is not None and tile.rgba.size > 0:
                 rgba = tile.rgba  # shape: (freq, time, 4)
@@ -604,7 +609,12 @@ class SpectrogramWidget(QWidget):
                 t1 = int(time_ratio_end * time_bins)
                 t1 = max(t0 + 1, min(t1, time_bins))
                 rgba_crop = rgba[:, t0:t1, :]  # (freq, cropped_time, 4)
-                extent = (float(self._start_time), float(self._end_time), float(freq_min), float(freq_max))
+                extent = (
+                    float(self._start_time),
+                    float(self._end_time),
+                    float(freq_min),
+                    float(freq_max),
+                )
                 if self._im is None:
                     self._im = self._ax.imshow(
                         rgba_crop,
@@ -634,7 +644,12 @@ class SpectrogramWidget(QWidget):
                     if spec_max <= spec_min
                     else (spec_crop - spec_min) / (spec_max - spec_min)
                 )
-                extent = (float(self._start_time), float(self._end_time), float(freq_min), float(freq_max))
+                extent = (
+                    float(self._start_time),
+                    float(self._end_time),
+                    float(freq_min),
+                    float(freq_max),
+                )
                 if self._im is None:
                     self._im = self._ax.imshow(
                         spec_normalized,

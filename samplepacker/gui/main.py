@@ -33,6 +33,7 @@ def main() -> None:
 
     # Import Qt and window lazily to avoid loading GUI stack when not needed
     from PySide6.QtWidgets import QApplication
+
     from samplepacker.gui.main_window import MainWindow
 
     # Create application
