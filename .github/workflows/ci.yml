@@ -26,6 +26,27 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y ffmpeg
+
+      - name: Install GUI runtime dependencies (Qt/OpenGL)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libegl1 \
+            libgl1 \
+            libxkbcommon0 \
+            libxkbcommon-x11-0 \
+            libxcb1 \
+            libxcb-xfixes0 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-render0 \
+            libxcb-render-util0 \
+            libxcb-shm0 \
+            libxcb-icccm4 \
+            libxcb-randr0 \
+            libxrender1 \
+            libxext6 \
+            libxi6
       
       - name: Install dependencies
         run: |
@@ -69,6 +90,8 @@ jobs:
           pyinstaller samplepacker.spec
       
       - name: Test executable
+        env:
+          QT_QPA_PLATFORM: offscreen
         run: |
           ./dist/samplepacker-gui --help
 
