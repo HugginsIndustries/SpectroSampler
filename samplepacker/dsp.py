@@ -1,8 +1,9 @@
 """DSP utilities: envelopes, z-scores, windows, spectral features."""
 
+from typing import cast
+
 import numpy as np
 import numpy.typing as npt
-from typing import cast
 
 
 def rms_envelope(audio: np.ndarray, window_size: int, hop_size: int) -> np.ndarray:

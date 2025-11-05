@@ -4,7 +4,7 @@ import json
 import logging
 import subprocess
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 from samplepacker.utils import compute_file_hash, ensure_dir
 
@@ -53,7 +53,7 @@ def get_audio_info(file_path: Path) -> dict:
         raise FFmpegError(f"ffprobe failed: {proc.stderr}")
     data = json.loads(proc.stdout or "{}")
     streams = data.get("streams", [])
-    astream: Dict[str, Any] = next((s for s in streams if s.get("codec_type") == "audio"), {})
+    astream: dict[str, Any] = next((s for s in streams if s.get("codec_type") == "audio"), {})
     fmt = data.get("format", {})
     duration = float(fmt.get("duration", astream.get("duration", 0.0)) or 0.0)
     sr = int(astream.get("sample_rate", 0) or fmt.get("sample_rate", 0) or 0)

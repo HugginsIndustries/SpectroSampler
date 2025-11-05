@@ -3,6 +3,7 @@
 import json
 import logging
 from pathlib import Path
+from typing import Any, cast
 
 import matplotlib.pyplot as plt
 
@@ -227,8 +228,7 @@ def save_summary_json(
         detector_stats: Statistics per detector.
         versions: Version information (ffmpeg, samplepacker, etc.).
     """
-    from typing import Any as _Any, Dict as _Dict, cast as _cast
-    summary: _Dict[str, _Any] = {
+    summary: dict[str, Any] = {
         "versions": versions,
         "audio_info": audio_info,
         "settings": settings,
@@ -254,7 +254,7 @@ def save_summary_json(
     # Count by detector
     for seg in segments:
         det = seg.detector
-        by_detector = _cast(dict[str, int], summary["segments_summary"]["by_detector"])  # type: ignore[index]
+        by_detector = cast(dict[str, int], summary["segments_summary"]["by_detector"])  # type: ignore[index]
         by_detector[det] = by_detector.get(det, 0) + 1
 
     ensure_dir(output_path.parent)

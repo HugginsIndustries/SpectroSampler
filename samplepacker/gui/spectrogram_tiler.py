@@ -5,12 +5,12 @@ from collections import OrderedDict
 from collections.abc import Callable
 from concurrent.futures import Future, ThreadPoolExecutor
 from pathlib import Path
+from typing import cast
 
 import numpy as np
+import numpy.typing as npt
 import soundfile as sf
 from matplotlib.cm import get_cmap
-import numpy.typing as npt
-from typing import cast
 from scipy import signal
 
 logger = logging.getLogger(__name__)
