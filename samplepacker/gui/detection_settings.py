@@ -1,15 +1,12 @@
-"""Settings panel widget for processing parameters."""
+"""Detection settings panel widget for processing parameters."""
 
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtWidgets import (
-    QCheckBox,
     QComboBox,
     QDoubleSpinBox,
     QFormLayout,
     QGroupBox,
-    QLabel,
     QPushButton,
-    QRadioButton,
     QScrollArea,
     QSlider,
     QSpinBox,
@@ -17,18 +14,17 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from samplepacker.gui.grid_manager import GridMode, GridSettings, Subdivision
 from samplepacker.pipeline import ProcessingSettings
 
 
-class SettingsPanel(QWidget):
-    """Settings panel widget."""
+class DetectionSettingsPanel(QWidget):
+    """Detection settings panel widget."""
 
     settings_changed = Signal()  # Emitted when settings change
     detect_samples_requested = Signal()  # Emitted when detection is requested
 
     def __init__(self, parent: QWidget | None = None):
-        """Initialize settings panel.
+        """Initialize detection settings panel.
 
         Args:
             parent: Parent widget.
@@ -37,10 +33,6 @@ class SettingsPanel(QWidget):
 
         # Create settings
         self._settings = ProcessingSettings()
-        self._grid_settings = GridSettings()
-        # Override defaults per plan
-        self._grid_settings.snap_interval_sec = 1.0
-        self._grid_settings.enabled = True
 
         # Create layout
         layout = QVBoxLayout()
@@ -68,10 +60,6 @@ class SettingsPanel(QWidget):
         # Audio processing
         audio_group = self._create_audio_group()
         content_layout.addWidget(audio_group)
-
-        # Grid settings
-        grid_group = self._create_grid_group()
-        content_layout.addWidget(grid_group)
 
         # Update controls
         update_group = self._create_update_group()
@@ -138,15 +126,15 @@ class SettingsPanel(QWidget):
         group = QGroupBox("Timing Parameters")
         layout = QFormLayout()
 
-        # Pre-padding
-        self._pre_pad_slider = self._create_slider_spin(0, 50000, int(self._settings.pre_pad_ms), "ms")
-        self._pre_pad_slider["slider"].valueChanged.connect(self._on_pre_pad_changed)
-        layout.addRow("Pre-padding:", self._pre_pad_slider["widget"])
+        # Detection Pre-padding
+        self._detection_pre_pad_slider = self._create_slider_spin(0, 50000, int(self._settings.detection_pre_pad_ms), "ms")
+        self._detection_pre_pad_slider["slider"].valueChanged.connect(self._on_detection_pre_pad_changed)
+        layout.addRow("Detection Pre-padding:", self._detection_pre_pad_slider["widget"])
 
-        # Post-padding
-        self._post_pad_slider = self._create_slider_spin(0, 50000, int(self._settings.post_pad_ms), "ms")
-        self._post_pad_slider["slider"].valueChanged.connect(self._on_post_pad_changed)
-        layout.addRow("Post-padding:", self._post_pad_slider["widget"])
+        # Detection Post-padding
+        self._detection_post_pad_slider = self._create_slider_spin(0, 50000, int(self._settings.detection_post_pad_ms), "ms")
+        self._detection_post_pad_slider["slider"].valueChanged.connect(self._on_detection_post_pad_changed)
+        layout.addRow("Detection Post-padding:", self._detection_post_pad_slider["widget"])
 
         # Merge gap
         self._merge_gap_slider = self._create_slider_spin(0, 1000, int(self._settings.merge_gap_ms), "ms")
@@ -201,74 +189,6 @@ class SettingsPanel(QWidget):
         self._nr_slider = self._create_slider_spin(0, 24, int(self._settings.nr), "")
         self._nr_slider["slider"].valueChanged.connect(self._on_nr_changed)
         layout.addRow("Noise reduction:", self._nr_slider["widget"])
-
-        # Output format
-        self._format_combo = QComboBox()
-        self._format_combo.addItems(["wav", "flac"])
-        self._format_combo.setCurrentText(self._settings.format)
-        self._format_combo.currentTextChanged.connect(self._on_format_changed)
-        layout.addRow("Format:", self._format_combo)
-
-        group.setLayout(layout)
-        return group
-
-    def _create_grid_group(self) -> QGroupBox:
-        """Create grid settings group.
-
-        Returns:
-            QGroupBox widget.
-        """
-        group = QGroupBox("Grid Settings")
-        layout = QVBoxLayout()
-
-        # Grid mode
-        mode_layout = QVBoxLayout()
-        self._grid_mode_free = QRadioButton("Free Time")
-        self._grid_mode_free.setChecked(self._grid_settings.mode == GridMode.FREE_TIME)
-        self._grid_mode_free.toggled.connect(self._on_grid_mode_changed)
-        mode_layout.addWidget(self._grid_mode_free)
-
-        self._grid_mode_musical = QRadioButton("Musical Bar")
-        self._grid_mode_musical.setChecked(self._grid_settings.mode == GridMode.MUSICAL_BAR)
-        self._grid_mode_musical.toggled.connect(self._on_grid_mode_changed)
-        mode_layout.addWidget(self._grid_mode_musical)
-
-        layout.addLayout(mode_layout)
-
-        # Free time settings
-        free_time_layout = QFormLayout()
-        self._snap_interval_slider = self._create_slider_spin(1, 10000, int(self._grid_settings.snap_interval_sec * 1000), "ms")
-        self._snap_interval_slider["slider"].valueChanged.connect(self._on_snap_interval_changed)
-        free_time_layout.addRow("Snap interval:", self._snap_interval_slider["widget"])
-
-        # Musical bar settings
-        musical_layout = QFormLayout()
-        self._bpm_spin = QSpinBox()
-        self._bpm_spin.setRange(60, 200)
-        self._bpm_spin.setValue(int(self._grid_settings.bpm))
-        self._bpm_spin.valueChanged.connect(self._on_bpm_changed)
-        musical_layout.addRow("BPM:", self._bpm_spin)
-
-        self._subdivision_combo = QComboBox()
-        self._subdivision_combo.addItems(["Whole", "Half", "Quarter", "Eighth", "Sixteenth", "Thirty-second"])
-        self._subdivision_combo.setCurrentIndex(2)  # Quarter
-        self._subdivision_combo.currentTextChanged.connect(self._on_subdivision_changed)
-        musical_layout.addRow("Subdivision:", self._subdivision_combo)
-
-        # Grid visibility
-        self._grid_visible_check = QCheckBox("Show grid")
-        self._grid_visible_check.setChecked(self._grid_settings.visible)
-        self._grid_visible_check.toggled.connect(self._on_grid_visible_changed)
-        layout.addWidget(self._grid_visible_check)
-
-        # Snap to grid
-        self._snap_enabled_check = QCheckBox("Snap to grid")
-        self._snap_enabled_check.setChecked(self._grid_settings.enabled)
-        self._snap_enabled_check.toggled.connect(self._on_snap_enabled_changed)
-        layout.addWidget(self._snap_enabled_check)
-
-        layout.addLayout(free_time_layout)
-        layout.addLayout(musical_layout)
 
         group.setLayout(layout)
         return group
@@ -335,14 +255,14 @@ class SettingsPanel(QWidget):
         """Handle settings change."""
         self.settings_changed.emit()
 
-    def _on_pre_pad_changed(self, value: int) -> None:
-        """Handle pre-padding change."""
-        self._settings.pre_pad_ms = float(value)
+    def _on_detection_pre_pad_changed(self, value: int) -> None:
+        """Handle detection pre-padding change."""
+        self._settings.detection_pre_pad_ms = float(value)
         self._on_settings_changed()
 
-    def _on_post_pad_changed(self, value: int) -> None:
-        """Handle post-padding change."""
-        self._settings.post_pad_ms = float(value)
+    def _on_detection_post_pad_changed(self, value: int) -> None:
+        """Handle detection post-padding change."""
+        self._settings.detection_post_pad_ms = float(value)
         self._on_settings_changed()
 
     def _on_merge_gap_changed(self, value: int) -> None:
@@ -385,52 +305,6 @@ class SettingsPanel(QWidget):
         self._settings.nr = float(value)
         self._on_settings_changed()
 
-    def _on_format_changed(self, format: str) -> None:
-        """Handle format change."""
-        self._settings.format = format
-        self._on_settings_changed()
-
-    def _on_grid_mode_changed(self) -> None:
-        """Handle grid mode change."""
-        if self._grid_mode_free.isChecked():
-            self._grid_settings.mode = GridMode.FREE_TIME
-        elif self._grid_mode_musical.isChecked():
-            self._grid_settings.mode = GridMode.MUSICAL_BAR
-        self.settings_changed.emit()
-
-    def _on_snap_interval_changed(self, value: int) -> None:
-        """Handle snap interval change."""
-        self._grid_settings.snap_interval_sec = value / 1000.0
-        self.settings_changed.emit()
-
-    def _on_bpm_changed(self, value: int) -> None:
-        """Handle BPM change."""
-        self._grid_settings.bpm = float(value)
-        self.settings_changed.emit()
-
-    def _on_subdivision_changed(self, text: str) -> None:
-        """Handle subdivision change."""
-        subdivision_map = {
-            "Whole": Subdivision.WHOLE,
-            "Half": Subdivision.HALF,
-            "Quarter": Subdivision.QUARTER,
-            "Eighth": Subdivision.EIGHTH,
-            "Sixteenth": Subdivision.SIXTEENTH,
-            "Thirty-second": Subdivision.THIRTY_SECOND,
-        }
-        self._grid_settings.subdivision = subdivision_map.get(text, Subdivision.QUARTER)
-        self.settings_changed.emit()
-
-    def _on_grid_visible_changed(self, checked: bool) -> None:
-        """Handle grid visibility change."""
-        self._grid_settings.visible = checked
-        self.settings_changed.emit()
-
-    def _on_snap_enabled_changed(self, checked: bool) -> None:
-        """Handle snap enabled change."""
-        self._grid_settings.enabled = checked
-        self.settings_changed.emit()
-
     def _on_detect_clicked(self) -> None:
         """Handle detect button click."""
         self.detect_samples_requested.emit()
@@ -442,12 +316,4 @@ class SettingsPanel(QWidget):
             ProcessingSettings object.
         """
         return self._settings
-
-    def get_grid_settings(self) -> GridSettings:
-        """Get grid settings.
-
-        Returns:
-            GridSettings object.
-        """
-        return self._grid_settings
 

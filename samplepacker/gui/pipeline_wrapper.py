@@ -11,6 +11,20 @@ from samplepacker.pipeline import ProcessingSettings, process_file
 logger = logging.getLogger(__name__)
 
 
+def _detect_task(input_path: Path, output_dir: Path, settings: ProcessingSettings) -> dict[str, Any]:
+    """Module-level task function for async detection (must be picklable).
+    
+    Args:
+        input_path: Path to input audio file.
+        output_dir: Output directory for temporary files.
+        settings: Processing settings.
+        
+    Returns:
+        Dictionary with processing results.
+    """
+    return process_file(input_path, output_dir, settings, cache=None)
+
+
 class PipelineWrapper:
     """Wrapper for pipeline processing with GUI-friendly interface."""
 
@@ -118,11 +132,7 @@ class PipelineWrapper:
             except Exception:
                 self._proc_executor = ProcessPoolExecutor()
 
-        def task(inp: Path, outd: Path, st: ProcessingSettings) -> dict[str, Any]:
-            # Separate process: call process_file
-            return process_file(inp, outd, st, cache=None)
-
-        fut = self._proc_executor.submit(task, self.current_audio_path, output_dir, preview_settings)
+        fut = self._proc_executor.submit(_detect_task, self.current_audio_path, output_dir, preview_settings)
 
         def _done(f: Future) -> None:
             try:
@@ -174,8 +184,8 @@ class PipelineWrapper:
                     input_path=self.current_audio_path,
                     output_path=output_path,
                     segment=segment,
-                    pre_pad_ms=self.settings.pre_pad_ms,
-                    post_pad_ms=self.settings.post_pad_ms,
+                    pre_pad_ms=self.settings.export_pre_pad_ms,
+                    post_pad_ms=self.settings.export_post_pad_ms,
                     format=self.settings.format,
                     sample_rate=self.settings.sample_rate,
                     bit_depth=self.settings.bit_depth,

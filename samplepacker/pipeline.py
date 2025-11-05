@@ -23,12 +23,19 @@ class ProcessingSettings:
         self.threshold: Any = kwargs.get("threshold", "auto")
 
         # Timing (milliseconds)
-        self.pre_pad_ms: float = kwargs.get("pre_pad_ms", 1000.0)
-        self.post_pad_ms: float = kwargs.get("post_pad_ms", 1000.0)
-        self.merge_gap_ms: float = kwargs.get("merge_gap_ms", 300.0)
-        self.min_dur_ms: float = kwargs.get("min_dur_ms", 400.0)
+        # Detection padding (used during detection/deduplication)
+        self.detection_pre_pad_ms: float = kwargs.get("detection_pre_pad_ms", 0.0)
+        self.detection_post_pad_ms: float = kwargs.get("detection_post_pad_ms", 0.0)
+        # Export padding (used during sample export)
+        self.export_pre_pad_ms: float = kwargs.get("export_pre_pad_ms", 0.0)
+        self.export_post_pad_ms: float = kwargs.get("export_post_pad_ms", 0.0)
+        # Legacy fields for backward compatibility - use detection padding if not set
+        self.pre_pad_ms: float = kwargs.get("pre_pad_ms", kwargs.get("detection_pre_pad_ms", 0.0))
+        self.post_pad_ms: float = kwargs.get("post_pad_ms", kwargs.get("detection_post_pad_ms", 0.0))
+        self.merge_gap_ms: float = kwargs.get("merge_gap_ms", 0.0)
+        self.min_dur_ms: float = kwargs.get("min_dur_ms", 100.0)
         self.max_dur_ms: float = kwargs.get("max_dur_ms", 60000.0)
-        self.min_gap_ms: float = kwargs.get("min_gap_ms", 1000.0)
+        self.min_gap_ms: float = kwargs.get("min_gap_ms", 100.0)
         # Disable chain-merge after padding by default
         self.no_merge_after_padding: bool = kwargs.get("no_merge_after_padding", True)
 
@@ -377,8 +384,8 @@ def process_file(
     )
     final_segments = deduplicate_segments_after_padding(
         merged,
-        pre_pad_ms=settings.pre_pad_ms,
-        post_pad_ms=settings.post_pad_ms,
+        pre_pad_ms=settings.detection_pre_pad_ms,
+        post_pad_ms=settings.detection_post_pad_ms,
         audio_duration=float(audio_info.get("duration", 0.0)),
         min_gap_ms=settings.min_gap_ms,
         no_merge_after_padding=settings.no_merge_after_padding,
@@ -422,8 +429,8 @@ def process_file(
             input_path=input_path,
             output_path=samples_dir / name,
             segment=seg,
-            pre_pad_ms=settings.pre_pad_ms,
-            post_pad_ms=settings.post_pad_ms,
+            pre_pad_ms=settings.export_pre_pad_ms,
+            post_pad_ms=settings.export_post_pad_ms,
             format=settings.format,
             sample_rate=settings.sample_rate,
             bit_depth=settings.bit_depth,

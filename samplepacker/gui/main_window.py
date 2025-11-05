@@ -34,7 +34,8 @@ from samplepacker.gui.navigator_scrollbar import NavigatorScrollbar
 from samplepacker.gui.pipeline_wrapper import PipelineWrapper
 from samplepacker.gui.detection_manager import DetectionManager
 from samplepacker.gui.sample_player import SamplePlayerWidget
-from samplepacker.gui.settings_panel import SettingsPanel
+from samplepacker.gui.detection_settings import DetectionSettingsPanel
+from samplepacker.gui.grid_manager import GridMode, GridSettings, Subdivision
 from samplepacker.gui.spectrogram_tiler import SpectrogramTiler
 from samplepacker.gui.spectrogram_widget import SpectrogramWidget
 from samplepacker.gui.theme import ThemeManager
@@ -101,6 +102,10 @@ class MainWindow(QMainWindow):
 
         # Connect signals
         self._connect_signals()
+        
+        # Setup UI refresh timer if enabled
+        if self._ui_refresh_rate_enabled:
+            self._setup_refresh_timer()
 
     def _setup_ui(self) -> None:
         """Setup UI components."""
@@ -117,10 +122,29 @@ class MainWindow(QMainWindow):
         splitter = QSplitter(Qt.Orientation.Horizontal)
 
         # Settings panel (left)
-        self._settings_panel = SettingsPanel()
+        self._settings_panel = DetectionSettingsPanel()
         self._settings_panel.settings_changed.connect(self._on_settings_changed)
         self._settings_panel.detect_samples_requested.connect(self._on_detect_samples)
         splitter.addWidget(self._settings_panel)
+        
+        # Grid settings (stored in main window)
+        self._grid_settings = GridSettings()
+        self._grid_settings.snap_interval_sec = 1.0
+        self._grid_settings.enabled = True
+        
+        # Export settings (stored in main window)
+        self._export_pre_pad_ms = 0.0
+        self._export_post_pad_ms = 0.0
+        self._export_format = "wav"
+        self._export_sample_rate: int | None = None
+        self._export_bit_depth: str | None = None
+        self._export_channels: str | None = None
+        
+        # UI refresh rate settings
+        self._ui_refresh_rate_enabled = True
+        self._ui_refresh_rate_hz = 60
+        self._ui_refresh_timer = None
+        self._pending_updates = {}
         splitter.setStretchFactor(0, 0)
 
         # Timeline view (right) - use vertical splitter for editor/navigator
@@ -256,6 +280,49 @@ class MainWindow(QMainWindow):
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
 
+        # Export menu
+        export_menu = menubar.addMenu("&Export")
+        
+        # Export pre-padding
+        export_pre_pad_action = QAction("Export &Pre-padding...", self)
+        export_pre_pad_action.triggered.connect(self._on_export_pre_pad_settings)
+        export_menu.addAction(export_pre_pad_action)
+        
+        # Export post-padding
+        export_post_pad_action = QAction("Export &Post-padding...", self)
+        export_post_pad_action.triggered.connect(self._on_export_post_pad_settings)
+        export_menu.addAction(export_post_pad_action)
+        
+        export_menu.addSeparator()
+        
+        # Format
+        format_menu = export_menu.addMenu("&Format")
+        self._export_format_wav_action = QAction("&WAV", self)
+        self._export_format_wav_action.setCheckable(True)
+        self._export_format_wav_action.setChecked(True)
+        self._export_format_wav_action.triggered.connect(lambda: self._on_export_format_changed("wav"))
+        format_menu.addAction(self._export_format_wav_action)
+        
+        self._export_format_flac_action = QAction("&FLAC", self)
+        self._export_format_flac_action.setCheckable(True)
+        self._export_format_flac_action.triggered.connect(lambda: self._on_export_format_changed("flac"))
+        format_menu.addAction(self._export_format_flac_action)
+        
+        # Sample rate
+        sample_rate_action = QAction("&Sample Rate...", self)
+        sample_rate_action.triggered.connect(self._on_export_sample_rate_settings)
+        export_menu.addAction(sample_rate_action)
+        
+        # Bit depth
+        bit_depth_action = QAction("&Bit Depth...", self)
+        bit_depth_action.triggered.connect(self._on_export_bit_depth_settings)
+        export_menu.addAction(bit_depth_action)
+        
+        # Channels
+        channels_action = QAction("&Channels...", self)
+        channels_action.triggered.connect(self._on_export_channels_settings)
+        export_menu.addAction(channels_action)
+
         # Edit menu
         edit_menu = menubar.addMenu("&Edit")
         self._undo_action = QAction("&Undo", self)
@@ -344,6 +411,82 @@ class MainWindow(QMainWindow):
         # Show Disabled Samples toggle moved from Edit to View
         view_menu.addAction(self._show_disabled_action)
 
+        view_menu.addSeparator()
+
+        # UI Refresh Rate Limit
+        self._ui_refresh_rate_enabled_action = QAction("Limit UI &Refresh Rate", self)
+        self._ui_refresh_rate_enabled_action.setCheckable(True)
+        self._ui_refresh_rate_enabled_action.setChecked(True)
+        self._ui_refresh_rate_enabled_action.toggled.connect(self._on_ui_refresh_rate_enabled_changed)
+        view_menu.addAction(self._ui_refresh_rate_enabled_action)
+        
+        refresh_rate_menu = view_menu.addMenu("Refresh &Rate")
+        refresh_rates = [15, 30, 60, 75, 120, 144, 165, 240]
+        self._refresh_rate_actions = {}
+        for rate in refresh_rates:
+            action = QAction(f"{rate} Hz", self)
+            action.setCheckable(True)
+            action.setChecked(rate == 60)
+            action.triggered.connect(lambda checked, r=rate: self._on_refresh_rate_changed(r))
+            refresh_rate_menu.addAction(action)
+            self._refresh_rate_actions[rate] = action
+
+        view_menu.addSeparator()
+
+        # Grid Settings
+        grid_menu = view_menu.addMenu("&Grid Settings")
+        
+        # Grid mode
+        grid_mode_menu = grid_menu.addMenu("Grid &Mode")
+        self._grid_mode_free_action = QAction("Free &Time", self)
+        self._grid_mode_free_action.setCheckable(True)
+        self._grid_mode_free_action.setChecked(True)
+        self._grid_mode_free_action.triggered.connect(self._on_grid_mode_changed)
+        grid_mode_menu.addAction(self._grid_mode_free_action)
+        
+        self._grid_mode_musical_action = QAction("&Musical Bar", self)
+        self._grid_mode_musical_action.setCheckable(True)
+        self._grid_mode_musical_action.triggered.connect(self._on_grid_mode_changed)
+        grid_mode_menu.addAction(self._grid_mode_musical_action)
+        
+        # Snap interval (for free time mode)
+        snap_interval_action = QAction("Snap &Interval...", self)
+        snap_interval_action.triggered.connect(self._on_snap_interval_settings)
+        grid_menu.addAction(snap_interval_action)
+        
+        # BPM (for musical bar mode)
+        bpm_action = QAction("&BPM...", self)
+        bpm_action.triggered.connect(self._on_bpm_settings)
+        grid_menu.addAction(bpm_action)
+        
+        # Subdivision (for musical bar mode)
+        subdivision_menu = grid_menu.addMenu("&Subdivision")
+        subdivisions = ["Whole", "Half", "Quarter", "Eighth", "Sixteenth", "Thirty-second"]
+        self._subdivision_actions = {}
+        for sub in subdivisions:
+            action = QAction(sub, self)
+            action.setCheckable(True)
+            action.setChecked(sub == "Quarter")
+            action.triggered.connect(lambda checked, s=sub: self._on_subdivision_changed(s))
+            subdivision_menu.addAction(action)
+            self._subdivision_actions[sub] = action
+        
+        grid_menu.addSeparator()
+        
+        # Show grid
+        self._grid_visible_action = QAction("Show &Grid", self)
+        self._grid_visible_action.setCheckable(True)
+        self._grid_visible_action.setChecked(True)
+        self._grid_visible_action.toggled.connect(self._on_grid_visible_changed)
+        grid_menu.addAction(self._grid_visible_action)
+        
+        # Snap to grid
+        self._snap_enabled_action = QAction("Snap to &Grid", self)
+        self._snap_enabled_action.setCheckable(True)
+        self._snap_enabled_action.setChecked(True)
+        self._snap_enabled_action.toggled.connect(self._on_snap_enabled_changed)
+        grid_menu.addAction(self._snap_enabled_action)
+
         # Help menu
         help_menu = menubar.addMenu("&Help")
 
@@ -412,6 +555,13 @@ class MainWindow(QMainWindow):
         try:
             # Create pipeline wrapper
             settings = self._settings_panel.get_settings()
+            # Initialize export settings
+            settings.export_pre_pad_ms = self._export_pre_pad_ms
+            settings.export_post_pad_ms = self._export_post_pad_ms
+            settings.format = self._export_format
+            settings.sample_rate = self._export_sample_rate
+            settings.bit_depth = self._export_bit_depth
+            settings.channels = self._export_channels
             self._pipeline_wrapper = PipelineWrapper(settings)
             self._detection_manager.set_pipeline_wrapper(self._pipeline_wrapper)
 
@@ -477,6 +627,13 @@ class MainWindow(QMainWindow):
         # Update pipeline wrapper settings
         if self._pipeline_wrapper:
             self._pipeline_wrapper.settings = self._settings_panel.get_settings()
+            # Update export settings
+            self._pipeline_wrapper.settings.export_pre_pad_ms = self._export_pre_pad_ms
+            self._pipeline_wrapper.settings.export_post_pad_ms = self._export_post_pad_ms
+            self._pipeline_wrapper.settings.format = self._export_format
+            self._pipeline_wrapper.settings.sample_rate = self._export_sample_rate
+            self._pipeline_wrapper.settings.bit_depth = self._export_bit_depth
+            self._pipeline_wrapper.settings.channels = self._export_channels
 
         # Start detection processing
         self._progress_bar.setVisible(True)
@@ -543,8 +700,7 @@ class MainWindow(QMainWindow):
         self._tiler.fmax = fmax
 
         # Update grid manager
-        grid_settings = self._settings_panel.get_grid_settings()
-        self._grid_manager.settings = grid_settings
+        self._grid_manager.settings = self._grid_settings
         self._spectrogram_widget.set_grid_manager(self._grid_manager)
 
     def _on_sample_selected(self, index: int) -> None:
@@ -1482,4 +1638,200 @@ class MainWindow(QMainWindow):
                 self._pipeline_wrapper.current_segments.sort(key=lambda s: s.start)
         except Exception:
             pass
+
+    # Export menu handlers
+    def _on_export_pre_pad_settings(self) -> None:
+        """Handle export pre-padding settings dialog."""
+        from PySide6.QtWidgets import QInputDialog
+        value, ok = QInputDialog.getDouble(
+            self, "Export Pre-padding", "Pre-padding (ms):", self._export_pre_pad_ms, 0.0, 50000.0, 0
+        )
+        if ok:
+            self._export_pre_pad_ms = value
+            # Update settings if pipeline wrapper exists
+            if self._pipeline_wrapper:
+                self._pipeline_wrapper.settings.export_pre_pad_ms = value
+
+    def _on_export_post_pad_settings(self) -> None:
+        """Handle export post-padding settings dialog."""
+        from PySide6.QtWidgets import QInputDialog
+        value, ok = QInputDialog.getDouble(
+            self, "Export Post-padding", "Post-padding (ms):", self._export_post_pad_ms, 0.0, 50000.0, 0
+        )
+        if ok:
+            self._export_post_pad_ms = value
+            # Update settings if pipeline wrapper exists
+            if self._pipeline_wrapper:
+                self._pipeline_wrapper.settings.export_post_pad_ms = value
+
+    def _on_export_format_changed(self, format: str) -> None:
+        """Handle export format change."""
+        self._export_format = format
+        # Update action states
+        self._export_format_wav_action.setChecked(format == "wav")
+        self._export_format_flac_action.setChecked(format == "flac")
+        # Update settings if pipeline wrapper exists
+        if self._pipeline_wrapper:
+            self._pipeline_wrapper.settings.format = format
+
+    def _on_export_sample_rate_settings(self) -> None:
+        """Handle export sample rate settings dialog."""
+        from PySide6.QtWidgets import QInputDialog
+        current = self._export_sample_rate if self._export_sample_rate else 0
+        value, ok = QInputDialog.getInt(
+            self, "Export Sample Rate", "Sample rate (Hz, 0 for original):", current, 0, 192000, 0
+        )
+        if ok:
+            self._export_sample_rate = value if value > 0 else None
+            # Update settings if pipeline wrapper exists
+            if self._pipeline_wrapper:
+                self._pipeline_wrapper.settings.sample_rate = self._export_sample_rate
+
+    def _on_export_bit_depth_settings(self) -> None:
+        """Handle export bit depth settings dialog."""
+        from PySide6.QtWidgets import QInputDialog, QMessageBox
+        options = ["16", "24", "32f", "None (original)"]
+        current_index = 0
+        if self._export_bit_depth:
+            try:
+                current_index = options.index(self._export_bit_depth)
+            except ValueError:
+                current_index = 0
+        else:
+            current_index = 3  # None
+        value, ok = QInputDialog.getItem(
+            self, "Export Bit Depth", "Bit depth:", options, current_index, False
+        )
+        if ok:
+            if value == "None (original)":
+                self._export_bit_depth = None
+            else:
+                self._export_bit_depth = value
+            # Update settings if pipeline wrapper exists
+            if self._pipeline_wrapper:
+                self._pipeline_wrapper.settings.bit_depth = self._export_bit_depth
+
+    def _on_export_channels_settings(self) -> None:
+        """Handle export channels settings dialog."""
+        from PySide6.QtWidgets import QInputDialog
+        options = ["mono", "stereo", "None (original)"]
+        current_index = 0
+        if self._export_channels:
+            try:
+                current_index = options.index(self._export_channels)
+            except ValueError:
+                current_index = 0
+        else:
+            current_index = 2  # None
+        value, ok = QInputDialog.getItem(
+            self, "Export Channels", "Channels:", options, current_index, False
+        )
+        if ok:
+            if value == "None (original)":
+                self._export_channels = None
+            else:
+                self._export_channels = value
+            # Update settings if pipeline wrapper exists
+            if self._pipeline_wrapper:
+                self._pipeline_wrapper.settings.channels = self._export_channels
+
+    # UI refresh rate handlers
+    def _on_ui_refresh_rate_enabled_changed(self, enabled: bool) -> None:
+        """Handle UI refresh rate limit toggle."""
+        self._ui_refresh_rate_enabled = enabled
+        if enabled:
+            self._setup_refresh_timer()
+        else:
+            if self._ui_refresh_timer:
+                self._ui_refresh_timer.stop()
+                self._ui_refresh_timer = None
+            # Apply all pending updates
+            self._apply_pending_updates()
+
+    def _on_refresh_rate_changed(self, rate: int) -> None:
+        """Handle refresh rate change."""
+        self._ui_refresh_rate_hz = rate
+        # Update action states
+        for r, action in self._refresh_rate_actions.items():
+            action.setChecked(r == rate)
+        # Restart timer if enabled
+        if self._ui_refresh_rate_enabled:
+            self._setup_refresh_timer()
+
+    def _setup_refresh_timer(self) -> None:
+        """Setup UI refresh timer."""
+        from PySide6.QtCore import QTimer
+        if self._ui_refresh_timer:
+            self._ui_refresh_timer.stop()
+        interval_ms = int(1000 / self._ui_refresh_rate_hz)
+        self._ui_refresh_timer = QTimer(self)
+        self._ui_refresh_timer.timeout.connect(self._apply_pending_updates)
+        self._ui_refresh_timer.start(interval_ms)
+
+    def _apply_pending_updates(self) -> None:
+        """Apply pending UI updates."""
+        # This will be called by the timer or directly when throttling is disabled
+        # For now, we'll implement a simple approach - update spectrogram widget
+        if hasattr(self, "_spectrogram_widget") and self._spectrogram_widget:
+            # Force update of spectrogram widget
+            self._spectrogram_widget.update()
+        self._pending_updates.clear()
+
+    # Grid settings handlers
+    def _on_grid_mode_changed(self) -> None:
+        """Handle grid mode change."""
+        if self._grid_mode_free_action.isChecked():
+            self._grid_settings.mode = GridMode.FREE_TIME
+            self._grid_mode_musical_action.setChecked(False)
+        elif self._grid_mode_musical_action.isChecked():
+            self._grid_settings.mode = GridMode.MUSICAL_BAR
+            self._grid_mode_free_action.setChecked(False)
+        self._on_settings_changed()
+
+    def _on_snap_interval_settings(self) -> None:
+        """Handle snap interval settings dialog."""
+        from PySide6.QtWidgets import QInputDialog
+        value_ms = int(self._grid_settings.snap_interval_sec * 1000)
+        value_ms, ok = QInputDialog.getInt(
+            self, "Snap Interval", "Snap interval (ms):", value_ms, 1, 10000, 0
+        )
+        if ok:
+            self._grid_settings.snap_interval_sec = value_ms / 1000.0
+            self._on_settings_changed()
+
+    def _on_bpm_settings(self) -> None:
+        """Handle BPM settings dialog."""
+        from PySide6.QtWidgets import QInputDialog
+        value, ok = QInputDialog.getInt(
+            self, "BPM", "BPM:", int(self._grid_settings.bpm), 60, 200, 0
+        )
+        if ok:
+            self._grid_settings.bpm = float(value)
+            self._on_settings_changed()
+
+    def _on_subdivision_changed(self, subdivision: str) -> None:
+        """Handle subdivision change."""
+        subdivision_map = {
+            "Whole": Subdivision.WHOLE,
+            "Half": Subdivision.HALF,
+            "Quarter": Subdivision.QUARTER,
+            "Eighth": Subdivision.EIGHTH,
+            "Sixteenth": Subdivision.SIXTEENTH,
+            "Thirty-second": Subdivision.THIRTY_SECOND,
+        }
+        self._grid_settings.subdivision = subdivision_map.get(subdivision, Subdivision.QUARTER)
+        # Update action states
+        for sub, action in self._subdivision_actions.items():
+            action.setChecked(sub == subdivision)
+        self._on_settings_changed()
+
+    def _on_grid_visible_changed(self, checked: bool) -> None:
+        """Handle grid visibility change."""
+        self._grid_settings.visible = checked
+        self._on_settings_changed()
+
+    def _on_snap_enabled_changed(self, checked: bool) -> None:
+        """Handle snap enabled change."""
+        self._grid_settings.enabled = checked
+        self._on_settings_changed()
 
