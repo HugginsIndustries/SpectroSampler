@@ -9,12 +9,6 @@ Note: Do not worry about backward compatibility for now. The program is unreleas
   - Review current defaults for VoiceVAD aggressiveness (currently hardcoded to 3), threshold values, and padding settings
   - Consider adaptive thresholds based on audio characteristics
   - Add validation to ensure detector settings are within valid ranges
-- [ ] Fix sample spread to force one sample per window
-  - The `spread_samples_across_duration` function should ensure samples are evenly distributed across time windows
-  - Currently may allow multiple samples within the same temporal window, defeating the purpose of spreading
-- [ ] Fix clustering samples (when Sample Spread is on)
-  - When Sample Spread is enabled, samples may cluster in certain time regions instead of being evenly distributed
-  - Review the window-based selection algorithm in `spread_samples_across_duration` to ensure proper distribution
 
 ### Audio Playback
 - [ ] Make looping samples more seamless (currently very choppy with short samples)
