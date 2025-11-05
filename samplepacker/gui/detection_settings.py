@@ -189,6 +189,16 @@ class DetectionSettingsPanel(QWidget):
         self._sample_spread_checkbox.stateChanged.connect(self._on_sample_spread_changed)
         layout.addRow("Sample spread:", self._sample_spread_checkbox)
 
+        # Sample spread mode
+        self._sample_spread_mode_combo = QComboBox()
+        self._sample_spread_mode_combo.addItems(["Strict", "Closest"])
+        # Map settings value to combo box: "strict" -> "Strict", "closest" -> "Closest"
+        mode_value = getattr(self._settings, "sample_spread_mode", "strict")
+        mode_display = mode_value.capitalize() if mode_value else "Strict"
+        self._sample_spread_mode_combo.setCurrentText(mode_display)
+        self._sample_spread_mode_combo.currentTextChanged.connect(self._on_sample_spread_mode_changed)
+        layout.addRow("Sample Spread Mode:", self._sample_spread_mode_combo)
+
         group.setLayout(layout)
         return group
 
@@ -326,6 +336,12 @@ class DetectionSettingsPanel(QWidget):
     def _on_sample_spread_changed(self, state: int) -> None:
         """Handle sample spread toggle change."""
         self._settings.sample_spread = self._sample_spread_checkbox.isChecked()
+        self._on_settings_changed()
+
+    def _on_sample_spread_mode_changed(self, mode: str) -> None:
+        """Handle sample spread mode change."""
+        # Convert display text to lowercase for settings
+        self._settings.sample_spread_mode = mode.lower()
         self._on_settings_changed()
 
     def _on_denoise_changed(self, method: str) -> None:

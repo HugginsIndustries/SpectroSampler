@@ -63,6 +63,7 @@ class ProcessingSettings:
         self.max_samples: int = kwargs.get("max_samples", 256)
         self.min_snr: float = kwargs.get("min_snr", 0.0)
         self.sample_spread: bool = kwargs.get("sample_spread", True)
+        self.sample_spread_mode: str = kwargs.get("sample_spread_mode", "strict")
 
         # Output format
         self.format: str = kwargs.get("format", "wav")
@@ -191,20 +192,46 @@ def merge_segments(
     return filtered
 
 
+def segment_in_window(seg: Segment, window_start: float, window_end: float) -> bool:
+    """Check if segment overlaps with or is contained in window.
+
+    Args:
+        seg: Segment to check.
+        window_start: Window start time in seconds.
+        window_end: Window end time in seconds.
+
+    Returns:
+        True if segment overlaps with or is contained within the window.
+    """
+    return not (seg.end < window_start or seg.start > window_end)
+
+
 def spread_samples_across_duration(
     segments: list[Segment],
     max_samples: int,
     audio_duration: float,
+    mode: str = "strict",
 ) -> list[Segment]:
     """Distribute samples evenly across the audio duration.
 
+    This function divides the audio into equal time windows and selects segments
+    to ensure even temporal distribution. The behavior depends on the mode:
+
+    - "strict": Only considers segments that overlap with each window's temporal
+      range. Windows with no overlapping segments are skipped. Within each window,
+      the segment with the highest score is selected.
+    - "closest": Selects the closest unused segment to each window center,
+      regardless of whether it overlaps with the window. This ensures max_samples
+      segments are always selected if available.
+
     Args:
-        segments: List of segments to select from (must be sorted by start time).
-        max_samples: Maximum number of samples to return.
+        segments: List of segments to select from (should be sorted by start time).
+        max_samples: Maximum number of samples to return (creates this many windows).
         audio_duration: Total audio duration in seconds.
+        mode: Spread mode - "strict" (window-based) or "closest" (distance-based).
 
     Returns:
-        List of segments distributed across the audio duration.
+        List of segments distributed across the audio duration, sorted by start time.
     """
     if not segments or max_samples <= 0 or audio_duration <= 0:
         return []
@@ -218,42 +245,89 @@ def spread_samples_across_duration(
     used_indices: set[int] = set()
 
     for i in range(max_samples):
-        window_center = (i + 0.5) * window_size
+        window_start = i * window_size
+        window_end = (i + 1) * window_size
+        window_center = (window_start + window_end) / 2.0
 
-        # Find the closest unused segment to this window center
-        best_idx = None
-        best_seg = None
-        best_distance = float("inf")
+        if mode == "strict":
+            # Strict mode: only consider segments that overlap with this window
+            best_idx = None
+            best_seg = None
+            best_score = float("-inf")
+            best_distance = float("inf")
 
-        for idx, seg in enumerate(segments):
-            if idx in used_indices:
-                continue
+            for idx, seg in enumerate(segments):
+                if idx in used_indices:
+                    continue
 
-            # Calculate distance from segment center to window center
-            seg_center = (seg.start + seg.end) / 2.0
-            distance = abs(seg_center - window_center)
+                # Only consider segments that overlap with this window
+                if not segment_in_window(seg, window_start, window_end):
+                    continue
 
-            # Prefer segments closer to window center, with score as tiebreaker
-            if best_seg is None:
-                # First candidate, always select
-                best_idx = idx
-                best_seg = seg
-                best_distance = distance
-            elif distance < best_distance:
-                # Closer segment found
-                best_idx = idx
-                best_seg = seg
-                best_distance = distance
-            elif distance == best_distance and seg.score > best_seg.score:
-                # Same distance but higher score
-                best_idx = idx
-                best_seg = seg
+                # Calculate distance from segment center to window center for tiebreaking
+                seg_center = (seg.start + seg.end) / 2.0
+                distance = abs(seg_center - window_center)
 
-        # Select the best segment for this window
-        if best_seg is not None:
-            selected.append(best_seg)
-            if best_idx is not None:
-                used_indices.add(best_idx)
+                # Select segment with highest score, use distance as tiebreaker
+                if best_seg is None:
+                    # First candidate
+                    best_idx = idx
+                    best_seg = seg
+                    best_score = seg.score
+                    best_distance = distance
+                elif seg.score > best_score:
+                    # Higher score
+                    best_idx = idx
+                    best_seg = seg
+                    best_score = seg.score
+                    best_distance = distance
+                elif seg.score == best_score and distance < best_distance:
+                    # Same score but closer to window center
+                    best_idx = idx
+                    best_seg = seg
+                    best_distance = distance
+
+            # Select the best segment for this window (if any)
+            if best_seg is not None:
+                selected.append(best_seg)
+                if best_idx is not None:
+                    used_indices.add(best_idx)
+
+        else:  # mode == "closest"
+            # Closest mode: find the closest unused segment to window center
+            best_idx = None
+            best_seg = None
+            best_distance = float("inf")
+
+            for idx, seg in enumerate(segments):
+                if idx in used_indices:
+                    continue
+
+                # Calculate distance from segment center to window center
+                seg_center = (seg.start + seg.end) / 2.0
+                distance = abs(seg_center - window_center)
+
+                # Prefer segments closer to window center, with score as tiebreaker
+                if best_seg is None:
+                    # First candidate, always select
+                    best_idx = idx
+                    best_seg = seg
+                    best_distance = distance
+                elif distance < best_distance:
+                    # Closer segment found
+                    best_idx = idx
+                    best_seg = seg
+                    best_distance = distance
+                elif distance == best_distance and seg.score > best_seg.score:
+                    # Same distance but higher score
+                    best_idx = idx
+                    best_seg = seg
+
+            # Select the best segment for this window
+            if best_seg is not None:
+                selected.append(best_seg)
+                if best_idx is not None:
+                    used_indices.add(best_idx)
 
     # Sort selected segments by start time
     return sorted(selected, key=lambda s: s.start)
@@ -554,7 +628,10 @@ def process_file(
         audio_duration = float(audio_info.get("duration", 0.0))
         if settings.sample_spread and audio_duration > 0:
             final_segments = spread_samples_across_duration(
-                final_segments, settings.max_samples, audio_duration
+                final_segments,
+                settings.max_samples,
+                audio_duration,
+                mode=settings.sample_spread_mode,
             )
         else:
             final_segments = final_segments[: settings.max_samples]
