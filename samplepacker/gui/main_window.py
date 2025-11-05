@@ -3,6 +3,7 @@
 import copy
 import logging
 import tempfile
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -74,6 +75,7 @@ class MainWindow(QMainWindow):
         self._current_playing_end: float | None = None
         self._is_paused = False
         self._paused_position = 0  # milliseconds
+        self._playback_stopped = False  # Flag to prevent restart after explicit stop
 
         # Undo/redo stacks
         self._undo_stack: list[list[Segment]] = []
@@ -905,8 +907,15 @@ class MainWindow(QMainWindow):
             return
 
         try:
-            # Stop any currently playing audio
+            # Stop any currently playing audio and clear source
             self._media_player.stop()
+            self._media_player.setSource(QUrl())
+            
+            # Disconnect previous handlers to avoid multiple connections
+            try:
+                self._media_player.mediaStatusChanged.disconnect()
+            except Exception:
+                pass
             
             # Clean up previous temp file
             if self._temp_playback_file and self._temp_playback_file.exists():
@@ -914,11 +923,13 @@ class MainWindow(QMainWindow):
                     self._temp_playback_file.unlink()
                 except Exception:
                     pass
+                self._temp_playback_file = None
 
-            # Extract segment to temporary file
+            # Extract segment to temporary file with unique filename
             import subprocess
             temp_dir = Path(tempfile.gettempdir())
-            self._temp_playback_file = temp_dir / f"samplepacker_playback_{tempfile.gettempprefix()}.wav"
+            unique_id = uuid.uuid4().hex
+            self._temp_playback_file = temp_dir / f"samplepacker_playback_{unique_id}.wav"
             
             duration = end_time - start_time
             
@@ -941,28 +952,26 @@ class MainWindow(QMainWindow):
                 QMessageBox.warning(self, "Playback Error", f"Failed to extract audio segment:\n{result.stderr}")
                 return
 
-            # Play the extracted segment
-            url = QUrl.fromLocalFile(str(self._temp_playback_file))
-            self._media_player.setSource(url)
-            
-            # If resuming from pause, seek to paused position
-            if self._is_paused and self._paused_position > 0:
-                self._media_player.setPosition(self._paused_position)
-                self._is_paused = False
-                self._paused_position = 0
-            
-            self._media_player.play()
-            
-            # Update player state to show playing
-            self._sample_player.set_playing(True)
-            
             # Store current playing info for looping
             self._current_playing_start = start_time
             self._current_playing_end = end_time
+            self._playback_stopped = False  # Reset stop flag when starting new playback
+            
+            # Store paused position for resume (if applicable)
+            seek_position = self._paused_position if self._is_paused and self._paused_position > 0 else 0
+            was_paused = self._is_paused
+            if was_paused:
+                self._is_paused = False
+                self._paused_position = 0
             
             # Clean up temp file when playback finishes and handle looping
             def on_playback_finished(status):
                 if status == QMediaPlayer.MediaStatus.EndOfMedia:
+                    # Don't restart if playback was explicitly stopped
+                    if self._playback_stopped:
+                        self._playback_stopped = False
+                        return
+                    
                     # Check if looping is enabled
                     if self._loop_enabled and self._current_playing_index is not None:
                         # Restart playback of the same segment
@@ -985,12 +994,27 @@ class MainWindow(QMainWindow):
                         except Exception:
                             pass
             
-            # Disconnect previous handler to avoid multiple connections
-            try:
-                self._media_player.mediaStatusChanged.disconnect()
-            except Exception:
-                pass
-            self._media_player.mediaStatusChanged.connect(on_playback_finished)
+            # Handler to wait for media to load before playing
+            def on_media_status_changed(status):
+                if status == QMediaPlayer.MediaStatus.LoadedMedia:
+                    # Media is loaded, now we can play
+                    # If resuming from pause, seek to paused position
+                    if seek_position > 0:
+                        self._media_player.setPosition(seek_position)
+                    
+                    self._media_player.play()
+                    # Update player state to show playing
+                    self._sample_player.set_playing(True)
+                elif status == QMediaPlayer.MediaStatus.EndOfMedia:
+                    # Also handle end of media in status changed
+                    on_playback_finished(status)
+            
+            # Connect handlers
+            self._media_player.mediaStatusChanged.connect(on_media_status_changed)
+            
+            # Load the extracted segment
+            url = QUrl.fromLocalFile(str(self._temp_playback_file))
+            self._media_player.setSource(url)
             
         except Exception as e:
             logger.error(f"Failed to play segment: {e}")
@@ -1057,13 +1081,27 @@ class MainWindow(QMainWindow):
 
     def _on_player_stop_requested(self) -> None:
         """Handle player stop request."""
+        # Disconnect mediaStatusChanged signal to prevent restart callbacks
+        try:
+            self._media_player.mediaStatusChanged.disconnect()
+        except Exception:
+            pass
+        
+        # Set stop flag to prevent restart
+        self._playback_stopped = True
+        
+        # Stop playback and clear source
         self._media_player.stop()
+        self._media_player.setSource(QUrl())
+        
+        # Update UI state
         self._sample_player.set_playing(False)
         self._current_playing_index = None
         self._current_playing_start = None
         self._current_playing_end = None
         self._is_paused = False
         self._paused_position = 0
+        
         # Reset progress bar
         self._sample_player.set_position(0, self._sample_player._duration if hasattr(self._sample_player, '_duration') else 0)
 

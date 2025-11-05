@@ -329,6 +329,41 @@ def deduplicate_segments_after_padding(
                 break
         if not drop:
             kept.append(cand)
+    
+    # Enforce minimum gap between padded segments if min_gap_ms > 0
+    if min_gap_ms > 0 and len(kept) > 1:
+        # Sort by padded start time to process in order
+        kept_sorted = sorted(kept, key=lambda s: s.start)
+        filtered: list[Segment] = []
+        
+        for seg in kept_sorted:
+            # Find all segments in filtered that are too close to this segment
+            too_close_segments = []
+            for other in filtered:
+                # Check gap between padded bounds: gap = seg.start - other.end
+                # Only check if seg comes after other (positive gap)
+                gap = seg.start - other.end
+                if gap >= 0 and gap < gap_sec:
+                    too_close_segments.append(other)
+            
+            if too_close_segments:
+                # Segments are too close, keep the highest-scored one
+                candidates = [seg] + too_close_segments
+                best = max(candidates, key=lambda s: s.score)
+                
+                # Remove all too_close_segments from filtered
+                for other in too_close_segments:
+                    filtered.remove(other)
+                
+                # Add the best one if it's not already in filtered
+                if best not in filtered:
+                    filtered.append(best)
+            else:
+                # No conflicts, add this segment
+                filtered.append(seg)
+        
+        kept = filtered
+    
     return kept
 
 
