@@ -2,7 +2,7 @@
 
 Turn long field recordings into usable sample packs with a modern GUI interface.
 
-**Note**: The GUI is now the primary interface. The CLI is deprecated but still available for batch processing.
+The GUI is the primary and only supported interface.
 
 ## Features
 
@@ -64,6 +64,25 @@ pip install -e ".[vad]"
 
 **Note**: If you don't need the VAD detector, you can use other modes (transient, nonsilence, spectral) without `webrtcvad`.
 
+### Windows notes
+
+- Install Python 3.11+ from `https://www.python.org/downloads/` and ensure “Add Python to PATH” is checked.
+- Install FFmpeg:
+  - Using Chocolatey (recommended):
+    ```powershell
+    choco install ffmpeg
+    ```
+  - Manual:
+    1) Download from `https://ffmpeg.org/download.html`
+    2) Extract to a folder like `C:\ffmpeg`
+    3) Add `C:\ffmpeg\bin` to your PATH
+  - Verify with:
+    ```powershell
+    ffmpeg -version
+    ```
+- Optional VAD support on Windows: `webrtcvad` may require Visual C++ Build Tools.
+  - Install Visual Studio Build Tools (Desktop development with C++) then run `pip install webrtcvad`, or try a prebuilt wheel: `pip install webrtcvad --only-binary :all:`.
+
 ### Development
 
 ```bash
@@ -98,7 +117,7 @@ samplepacker-gui
 Or:
 
 ```bash
-python -m samplepacker.gui
+python -m samplepacker.gui.main
 ```
 
 1. **Open Audio File**: File → Open Audio File (or drag and drop)
@@ -115,13 +134,7 @@ python -m samplepacker.gui
 - **Delete**: `Delete` key
 - **Snap Toggle**: `G` key
 
-### Legacy CLI (Deprecated)
-
-The CLI is still available but deprecated:
-
-```bash
-samplepacker input.wav --out output_dir
-```
+<!-- CLI removed: SamplePacker now ships GUI only -->
 
 ## GUI Usage
 
@@ -158,55 +171,7 @@ samplepacker input.wav --out output_dir
 - **Low-pass Filter**: Set maximum frequency (Hz)
 - **Real-time Update**: Spectrogram updates automatically when filters change
 
-## Legacy CLI Options (Deprecated)
-
-### Detection Mode
-
-- `--mode [auto|voice|transient|nonsilence|spectral]` (default: `auto`)
-  - `auto`: Run multiple detectors and merge results
-  - `voice`: Voice Activity Detection (WebRTC VAD)
-  - `transient`: Transient detection (spectral flux)
-  - `nonsilence`: Non-silence energy detection
-  - `spectral`: Spectral interestingness detection
-
-### Timing (milliseconds)
-
-- `--pre-ms 10000`: Padding before segment
-- `--post-ms 10000`: Padding after segment
-- `--merge-gap-ms 300`: Merge segments within this gap
-- `--min-dur-ms 400`: Minimum segment duration
-- `--max-dur-ms 60000`: Maximum segment duration
-- `--min-gap-ms 0`: Minimum gap between samples after padding
-
-### Output Format
-
-- `--format [wav|flac]`: Output format (default: preserve original)
-- `--samplerate <hz>`: Resample output (omit to preserve original)
-- `--bitdepth [16|24|32f]`: Bit depth conversion
-- `--channels [mono|stereo]`: Channel conversion
-
-### Denoising
-
-- `--denoise [arnndn|afftdn|off]`: Denoise method (default: `afftdn`)
-- `--hp 120`: High-pass filter (Hz)
-- `--lp 6000`: Low-pass filter (Hz)
-- `--nr 12`: Noise reduction strength (afftdn)
-
-### Spectrograms & Reports
-
-- `--spectrogram`: Generate spectrogram PNGs
-- `--spectro-size "4096x1024"`: Spectrogram image size
-- `--spectro-video`: Generate spectrogram video (MP4)
-- `--report html`: Generate HTML report
-
-### Workflow
-
-- `--jobs N`: Parallel jobs for batch processing
-- `--cache`: Cache denoised and analysis files
-- `--resume`: Skip already processed files
-- `--skip-existing`: Don't re-cut samples that already exist
-- `--dry-run`: Produce reports but no audio cuts
-- `--verbose`: Verbose logging
+<!-- CLI options removed -->
 
 ## Output Structure
 
@@ -269,6 +234,12 @@ python -m ruff check samplepacker tests scripts
 python -m mypy samplepacker --ignore-missing-imports
 ```
 
+### Troubleshooting (Windows)
+
+- “make is not recognized”: Use the PowerShell commands above instead of `make`.
+- “Microsoft Visual C++ 14.0 or greater is required”: Only needed for `webrtcvad`. Install VS Build Tools, skip VAD, or use a prebuilt wheel.
+- “ffmpeg not found”: Ensure FFmpeg is installed and `ffmpeg` is in PATH. Verify with `ffmpeg -version`.
+
 ### Building PyInstaller Executable
 
 **Linux/Mac:**
@@ -278,7 +249,7 @@ make freeze
 
 **Windows:**
 ```powershell
-pyinstaller --onefile --name samplepacker --add-data "samplepacker/presets;presets" samplepacker/cli.py
+pyinstaller --onefile --name samplepacker-gui --add-data "samplepacker/presets;presets" samplepacker/gui/main.py
 ```
 
 Note: The `Makefile` is for Unix-like systems. On Windows, use PowerShell/cmd directly or install `make` via Chocolatey/WSL.

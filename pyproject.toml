@@ -47,7 +47,6 @@ dev = [
 ]
 
 [project.scripts]
-samplepacker = "samplepacker.cli:cli_main"
 samplepacker-gui = "samplepacker.gui.main:main"
 
 [tool.setuptools]

@@ -41,11 +41,11 @@ build:
 	python -m build
 
 freeze:
-	pyinstaller --onefile --name samplepacker \
+	pyinstaller --onefile --name samplepacker-gui \
 		--add-data "samplepacker/presets:presets" \
-		samplepacker/cli.py
-	@echo "Executable: dist/samplepacker (or dist/samplepacker.exe on Windows)"
+		samplepacker/gui/main.py
+	@echo "Executable: dist/samplepacker-gui (or dist/samplepacker-gui.exe on Windows)"
 
 run:
-	python -m samplepacker.cli --help
+	python -m samplepacker.gui.main
 
