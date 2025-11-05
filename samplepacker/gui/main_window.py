@@ -758,8 +758,23 @@ class MainWindow(QMainWindow):
             old_end = seg.end
             seg.start = start
             seg.end = end
-            self._update_sample_table(self._pipeline_wrapper.current_segments)
+            # Fast path: update only the edited column cells to avoid full table rebuild
+            try:
+                self._sample_table.blockSignals(True)
+                start_item = self._sample_table.item(2, index)
+                if start_item:
+                    start_item.setText(f"{seg.start:.3f}")
+                end_item = self._sample_table.item(3, index)
+                if end_item:
+                    end_item.setText(f"{seg.end:.3f}")
+                duration_item = self._sample_table.item(4, index)
+                if duration_item:
+                    duration_item.setText(f"{seg.duration():.3f}")
+            finally:
+                self._sample_table.blockSignals(False)
+
             self._maybe_auto_reorder()
+            # Update overlays only in spectrogram; no tile requests
             self._spectrogram_widget.set_segments(self._get_display_segments())
             self._update_navigator_markers()
             
@@ -813,8 +828,23 @@ class MainWindow(QMainWindow):
             old_end = seg.end
             seg.start = start
             seg.end = end
-            self._update_sample_table(self._pipeline_wrapper.current_segments)
+            # Fast path: update only the edited column cells to avoid full table rebuild
+            try:
+                self._sample_table.blockSignals(True)
+                start_item = self._sample_table.item(2, index)
+                if start_item:
+                    start_item.setText(f"{seg.start:.3f}")
+                end_item = self._sample_table.item(3, index)
+                if end_item:
+                    end_item.setText(f"{seg.end:.3f}")
+                duration_item = self._sample_table.item(4, index)
+                if duration_item:
+                    duration_item.setText(f"{seg.duration():.3f}")
+            finally:
+                self._sample_table.blockSignals(False)
+
             self._maybe_auto_reorder()
+            # Update overlays only in spectrogram; no tile requests
             self._spectrogram_widget.set_segments(self._get_display_segments())
             self._update_navigator_markers()
             

@@ -175,15 +175,20 @@ class SpectrogramWidget(QWidget):
         self._pixels_per_second = 100.0 * self._zoom_level
         self._update_display()
 
-    def set_segments(self, segments: list[Segment]) -> None:
+    def set_segments(self, segments: list[Segment], update_tiles: bool = False) -> None:
         """Set detected segments.
 
         Args:
             segments: List of segments.
+            update_tiles: If True, request tiles (for time range changes).
+                          If False, only update overlays (for segment-only changes).
         """
         self._segments = segments
         self._selected_index = None
-        self._update_display()
+        if update_tiles:
+            self._update_display()
+        else:
+            self._update_overlays_only()
 
     def set_selected_index(self, index: int | None) -> None:
         """Set selected segment index.
@@ -192,7 +197,7 @@ class SpectrogramWidget(QWidget):
             index: Segment index or None.
         """
         self._selected_index = index
-        self._update_display()
+        self._update_overlays_only()
 
     def set_grid_manager(self, grid_manager: GridManager) -> None:
         """Set grid manager.
@@ -201,7 +206,7 @@ class SpectrogramWidget(QWidget):
             grid_manager: GridManager instance.
         """
         self._grid_manager = grid_manager
-        self._update_display()
+        self._update_overlays_only()
 
     def set_show_disabled(self, show: bool) -> None:
         """Control whether disabled samples are drawn with indication.
@@ -210,7 +215,7 @@ class SpectrogramWidget(QWidget):
             show: True to show disabled samples (with visual indication).
         """
         self._show_disabled = bool(show)
-        self._update_display()
+        self._update_overlays_only()
 
     def set_audio_path(self, audio_path: Path | None) -> None:
         """Set audio file path for spectrogram generation.
@@ -336,6 +341,18 @@ class SpectrogramWidget(QWidget):
         # Draw overlays (includes segments, grid, preview)
         self._draw_overlays()
 
+        self._canvas.draw()
+
+    def _update_overlays_only(self) -> None:
+        """Update only overlays (segments, grid) without requesting tiles.
+        
+        Use this during drag/resize operations when the time range hasn't changed
+        to avoid unnecessary tile cache lookups.
+        """
+        if self._duration <= 0:
+            return
+        # Draw overlays (includes segments, grid, preview)
+        self._draw_overlays()
         self._canvas.draw()
 
     def _draw_overlays(self) -> None:
@@ -776,7 +793,7 @@ class SpectrogramWidget(QWidget):
             self._drag_start_pos = None
             self._original_segment_start = None
             self._original_segment_end = None
-            self._update_display()
+            self._update_overlays_only()
         elif event.button == 2:  # Middle button
             if event.xdata is not None:
                 time = max(self._start_time, min(event.xdata, self._end_time))
@@ -840,7 +857,7 @@ class SpectrogramWidget(QWidget):
             self._pending_drag_end = new_end
             seg.start = new_start  # Update visual preview
             seg.end = new_end  # Update visual preview
-            self._update_display()
+            self._update_overlays_only()
         elif self._resizing_left and self._selected_index is not None:
             # Resize left edge (visual preview only, no signal emission)
             seg = self._segments[self._selected_index]
@@ -856,7 +873,7 @@ class SpectrogramWidget(QWidget):
             self._pending_resize_start = new_start
             self._pending_resize_end = seg.end
             seg.start = new_start  # Update visual preview
-            self._update_display()
+            self._update_overlays_only()
         elif self._resizing_right and self._selected_index is not None:
             # Resize right edge (visual preview only, no signal emission)
             seg = self._segments[self._selected_index]
@@ -872,7 +889,7 @@ class SpectrogramWidget(QWidget):
             self._pending_resize_start = seg.start
             self._pending_resize_end = new_end
             seg.end = new_end  # Update visual preview
-            self._update_display()
+            self._update_overlays_only()
         elif self._creating_sample:
             # Update create preview bounds
             if event.xdata is not None:
@@ -881,7 +898,7 @@ class SpectrogramWidget(QWidget):
                 end = max(self._create_start_time, end_time)
                 self._pending_create_start = start
                 self._pending_create_end = end
-                self._update_display()
+                self._update_overlays_only()
 
     def _on_wheel(self, event) -> None:
         """Handle mouse wheel event for zooming/panning (ALT = pan)."""
