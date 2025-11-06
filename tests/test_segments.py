@@ -242,7 +242,7 @@ def test_spread_samples_evenly_distributed():
     # Should get 5 segments, one per window
     assert len(result) == 5
     # Verify no duplicates
-    assert len(set(id(s) for s in result)) == 5
+    assert len({id(s) for s in result}) == 5
     # Verify segments are sorted by start time
     assert all(result[i].start <= result[i + 1].start for i in range(len(result) - 1))
 
@@ -284,7 +284,7 @@ def test_spread_samples_clustering_prevention():
     # Should have segments from different windows (ideally all 4 windows)
     assert len(set(windows)) >= 2  # At least some distribution
     # Verify no duplicates
-    assert len(set(id(s) for s in result)) == 4
+    assert len({id(s) for s in result}) == 4
 
 
 def test_spread_samples_score_priority():
@@ -392,7 +392,7 @@ def test_spread_samples_no_duplicates():
     result = spread_samples_across_duration(segments, max_samples, audio_duration)
 
     # Verify no duplicates by checking object identity
-    assert len(result) == len(set(id(s) for s in result))
+    assert len(result) == len({id(s) for s in result})
     # Verify no duplicates by checking segment properties
     segment_signatures = [(s.start, s.end, s.detector) for s in result]
     assert len(segment_signatures) == len(set(segment_signatures))
@@ -481,7 +481,7 @@ def test_spread_samples_closest_mode():
     # Closest mode should always return max_samples segments if available
     assert len(result) == 4
     # Verify no duplicates
-    assert len(set(id(s) for s in result)) == 4
+    assert len({id(s) for s in result}) == 4
 
 
 def test_spread_samples_closest_mode_empty_windows():
@@ -500,7 +500,7 @@ def test_spread_samples_closest_mode_empty_windows():
     # Closest mode should fill all windows with closest segments
     assert len(result) == 3  # Only 3 segments available
     # Verify no duplicates
-    assert len(set(id(s) for s in result)) == 3
+    assert len({id(s) for s in result}) == 3
 
 
 def test_spread_samples_strict_vs_closest():
@@ -518,8 +518,12 @@ def test_spread_samples_strict_vs_closest():
     audio_duration = 100.0
     max_samples = 4
 
-    strict_result = spread_samples_across_duration(segments, max_samples, audio_duration, mode="strict")
-    closest_result = spread_samples_across_duration(segments, max_samples, audio_duration, mode="closest")
+    strict_result = spread_samples_across_duration(
+        segments, max_samples, audio_duration, mode="strict"
+    )
+    closest_result = spread_samples_across_duration(
+        segments, max_samples, audio_duration, mode="closest"
+    )
 
     # Both should return results
     assert len(strict_result) > 0

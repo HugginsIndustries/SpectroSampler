@@ -196,7 +196,9 @@ class DetectionSettingsPanel(QWidget):
         mode_value = getattr(self._settings, "sample_spread_mode", "strict")
         mode_display = mode_value.capitalize() if mode_value else "Strict"
         self._sample_spread_mode_combo.setCurrentText(mode_display)
-        self._sample_spread_mode_combo.currentTextChanged.connect(self._on_sample_spread_mode_changed)
+        self._sample_spread_mode_combo.currentTextChanged.connect(
+            self._on_sample_spread_mode_changed
+        )
         layout.addRow("Sample Spread Mode:", self._sample_spread_mode_combo)
 
         group.setLayout(layout)

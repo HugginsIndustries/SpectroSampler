@@ -28,7 +28,11 @@ from spectrosampler.export import (
     export_sample,
     export_timestamps_csv,
 )
-from spectrosampler.report import create_annotated_spectrogram, create_html_report, save_summary_json
+from spectrosampler.report import (
+    create_annotated_spectrogram,
+    create_html_report,
+    save_summary_json,
+)
 
 
 class ProcessingSettings:
