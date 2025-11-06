@@ -15,12 +15,13 @@ _Summary: P0: 3 items, P1: 26 items, P2: 18 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
+- For items that affect UX, add 1–3 concise acceptance bullets each (what the user sees/does).
+- Keep user-facing acceptance criteria concise and testable.
 - Keep formatting consistent: section → subsection(s) → item → acceptance bullets.
 - Use backticks for code identifiers (files like `utils.py`, functions like `check_ffmpeg()`, classes like `FFmpegError`).
 - Assign an appropriate priority tag ([P0]/[P1]/[P2]).
 - Do not delete empty sections; write "No items currently planned" instead.
 - Update the summary counts when adding/removing items.
-- Keep user-facing acceptance criteria concise and testable.
 
 ## **Fixes**
 
