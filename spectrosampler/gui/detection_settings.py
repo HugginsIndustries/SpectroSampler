@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from spectrosampler.gui.settings import SettingsManager
 from spectrosampler.pipeline import ProcessingSettings
 
 
@@ -34,6 +35,7 @@ class DetectionSettingsPanel(QWidget):
 
         # Create settings
         self._settings = ProcessingSettings()
+        self._settings_manager = SettingsManager()
 
         # Create layout
         layout = QVBoxLayout()
@@ -57,6 +59,10 @@ class DetectionSettingsPanel(QWidget):
         # Timing parameters
         timing_group = self._create_timing_group()
         content_layout.addWidget(timing_group)
+
+        # Overlap Resolution
+        overlap_group = self._create_overlap_group()
+        content_layout.addWidget(overlap_group)
 
         # Audio processing
         audio_group = self._create_audio_group()
@@ -117,6 +123,71 @@ class DetectionSettingsPanel(QWidget):
 
         self._workers_spin.valueChanged.connect(_on_workers_changed)
         layout.addRow("CPU workers:", self._workers_spin)
+
+        group.setLayout(layout)
+        return group
+
+    def _create_overlap_group(self) -> QGroupBox:
+        """Create overlap resolution settings group."""
+        group = QGroupBox("Overlap Resolution")
+        layout = QFormLayout()
+
+        # Show overlap dialog checkbox
+        self._show_overlap_dialog_checkbox = QCheckBox()
+        try:
+            self._show_overlap_dialog_checkbox.setChecked(
+                self._settings_manager.get_show_overlap_dialog()
+            )
+        except Exception:
+            self._show_overlap_dialog_checkbox.setChecked(True)
+
+        def _on_show_overlap_changed(state: int) -> None:
+            try:
+                self._settings_manager.set_show_overlap_dialog(
+                    self._show_overlap_dialog_checkbox.isChecked()
+                )
+            finally:
+                self.settings_changed.emit()
+
+        self._show_overlap_dialog_checkbox.stateChanged.connect(_on_show_overlap_changed)
+        layout.addRow("Show overlap dialog:", self._show_overlap_dialog_checkbox)
+
+        # Default behavior dropdown
+        self._overlap_behavior_combo = QComboBox()
+        self._overlap_behavior_combo.addItems(
+            [
+                "Discard Overlaps",
+                "Discard Duplicates",
+                "Keep All",
+            ]
+        )
+        try:
+            behavior = self._settings_manager.get_overlap_default_behavior()
+        except Exception:
+            behavior = "discard_duplicates"
+
+        display_map = {
+            "discard_overlaps": "Discard Overlaps",
+            "discard_duplicates": "Discard Duplicates",
+            "keep_all": "Keep All",
+        }
+        self._overlap_behavior_combo.setCurrentText(display_map.get(behavior, "Discard Duplicates"))
+
+        def _on_behavior_changed(text: str) -> None:
+            inv_map = {
+                "Discard Overlaps": "discard_overlaps",
+                "Discard Duplicates": "discard_duplicates",
+                "Keep All": "keep_all",
+            }
+            try:
+                self._settings_manager.set_overlap_default_behavior(
+                    inv_map.get(text, "discard_duplicates")
+                )
+            finally:
+                self.settings_changed.emit()
+
+        self._overlap_behavior_combo.currentTextChanged.connect(_on_behavior_changed)
+        layout.addRow("Default behavior:", self._overlap_behavior_combo)
 
         group.setLayout(layout)
         return group

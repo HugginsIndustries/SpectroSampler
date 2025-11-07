@@ -1348,7 +1348,9 @@ class MainWindow(QMainWindow):
             elif clicked_button == discard_button:
                 # Delete autosaves before closing to prevent recovery dialog
                 self._autosave_manager.cleanup_old_autosaves(keep_count=0)
-                # Allow close to proceed
+                self._project_modified = False
+                self._update_window_title()
+                # Allow close to proceed without auto-save
             elif clicked_button == cancel_button:
                 event.ignore()  # User cancelled close
                 return
@@ -1615,6 +1617,17 @@ class MainWindow(QMainWindow):
             self._pipeline_wrapper.settings.bit_depth = self._export_bit_depth
             self._pipeline_wrapper.settings.channels = self._export_channels
 
+            # Preserve existing segments before re-detect (for overlap workflow)
+            try:
+                existing = getattr(self._pipeline_wrapper, "current_segments", [])
+                if existing:
+                    # Deep-copy to avoid in-place mutations during UI updates
+                    self._existing_segments_buffer = copy.deepcopy(existing)
+                else:
+                    self._existing_segments_buffer = []
+            except Exception:
+                self._existing_segments_buffer = []
+
         # Show loading screen for detection
         self._loading_screen.set_message("Detecting samples...")
         self._loading_screen.show_overlay(self)
@@ -1650,10 +1663,106 @@ class MainWindow(QMainWindow):
             if not hasattr(s, "attrs") or s.attrs is None:
                 s.attrs = {}
             s.attrs.setdefault("enabled", True)
+        # If we have existing segments preserved before detection, resolve overlaps
+        existing_segments = getattr(self, "_existing_segments_buffer", []) or []
+        final_segments = segments
+        if existing_segments:
+            try:
+                from spectrosampler.gui.overlap_detector import find_overlaps
+                from spectrosampler.gui.overlap_resolution_dialog import (
+                    OverlapResolutionDialog,
+                )
+
+                report = find_overlaps(existing_segments, segments, tolerance_ms=5.0)
+                has_conflict = bool(report.overlaps or report.duplicates)
+                behavior = None
+                remember_choice = False
+                if has_conflict:
+                    # Determine behavior via settings or dialog
+                    try:
+                        default_behavior = self._settings_manager.get_overlap_default_behavior()
+                        show_dialog = self._settings_manager.get_show_overlap_dialog()
+                    except Exception:
+                        default_behavior = "discard_duplicates"
+                        show_dialog = True
+
+                    if show_dialog:
+                        dlg = OverlapResolutionDialog(
+                            overlaps_count=len(report.overlaps),
+                            duplicates_count=len(report.duplicates),
+                            parent=self,
+                        )
+                        # Preselect based on current default
+                        if default_behavior == "discard_overlaps":
+                            dlg._rb_discard_overlaps.setChecked(True)
+                        elif default_behavior == "keep_all":
+                            dlg._rb_keep_all.setChecked(True)
+                        else:
+                            dlg._rb_discard_duplicates.setChecked(True)
+
+                        if dlg.exec() == OverlapResolutionDialog.Accepted:
+                            res = dlg.result_choice()
+                            if res is None:
+                                # Aborted
+                                return
+                            behavior, remember_choice = res
+                        else:
+                            # User canceled
+                            return
+                    else:
+                        behavior = default_behavior
+
+                    # Apply resolution
+                    def overlaps_with_existing(idx_new: int) -> bool:
+                        for _i, j in report.overlaps:
+                            if j == idx_new:
+                                return True
+                        return False
+
+                    def duplicate_with_existing(idx_new: int) -> bool:
+                        for _i, j in report.duplicates:
+                            if j == idx_new:
+                                return True
+                        return False
+
+                    filtered_new: list = []
+                    if behavior == "discard_overlaps":
+                        for j, seg in enumerate(segments):
+                            if not overlaps_with_existing(j):
+                                filtered_new.append(seg)
+                    elif behavior == "keep_all":
+                        filtered_new = list(segments)
+                    else:  # discard_duplicates (default)
+                        for j, seg in enumerate(segments):
+                            if not duplicate_with_existing(j):
+                                filtered_new.append(seg)
+
+                    # Update settings if user asked to remember
+                    if remember_choice:
+                        try:
+                            self._settings_manager.set_show_overlap_dialog(False)
+                            self._settings_manager.set_overlap_default_behavior(
+                                behavior or "discard_duplicates"
+                            )
+                        except Exception:
+                            pass
+
+                    final_segments = existing_segments + filtered_new
+                else:
+                    # No conflicts; simple merge
+                    final_segments = existing_segments + segments
+            except Exception:
+                # Fallback: simple merge on error
+                final_segments = existing_segments + segments
+
         if self._pipeline_wrapper:
-            self._pipeline_wrapper.current_segments = segments
+            self._pipeline_wrapper.current_segments = final_segments
+        # Apply auto-order if enabled (after merging new segments with existing)
+        self._maybe_auto_reorder()
         self._spectrogram_widget.set_segments(self._get_display_segments())
-        self._update_sample_table(segments)
+        self._update_sample_table(
+            self._pipeline_wrapper.current_segments if self._pipeline_wrapper else final_segments
+        )
 
         # Don't update player widget - player should only show info for currently playing sample
 

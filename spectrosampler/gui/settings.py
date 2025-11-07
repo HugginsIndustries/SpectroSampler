@@ -154,6 +154,37 @@ class SettingsManager:
         self._settings.remove("recentAudioFilesTimestamps")
         self._settings.sync()
 
+    # Overlap dialog settings
+    def get_show_overlap_dialog(self) -> bool:
+        """Return True to show overlap dialog on conflicts (default True)."""
+        return self._settings.value("showOverlapDialog", True, type=bool)
+
+    def set_show_overlap_dialog(self, enabled: bool) -> None:
+        """Enable/disable showing the overlap dialog on conflicts."""
+        self._settings.setValue("showOverlapDialog", bool(enabled))
+        self._settings.sync()
+
+    def get_overlap_default_behavior(self) -> str:
+        """Get default overlap behavior: discard_duplicates|discard_overlaps|keep_all."""
+        val = self._settings.value("overlapDefaultBehavior", "discard_duplicates")
+        try:
+            s = str(val)
+        except Exception:
+            s = "discard_duplicates"
+        if s not in ("discard_duplicates", "discard_overlaps", "keep_all"):
+            s = "discard_duplicates"
+        return s
+
+    def set_overlap_default_behavior(self, behavior: str) -> None:
+        """Set default overlap behavior.
+
+        behavior must be one of: discard_duplicates, discard_overlaps, keep_all.
+        """
+        if behavior not in ("discard_duplicates", "discard_overlaps", "keep_all"):
+            behavior = "discard_duplicates"
+        self._settings.setValue("overlapDefaultBehavior", behavior)
+        self._settings.sync()
+
     def get_auto_save_enabled(self) -> bool:
         """Get auto-save enabled setting.
 

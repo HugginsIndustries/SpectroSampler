@@ -152,8 +152,6 @@ python -m spectrosampler.gui.main
 - **Delete**: `Delete` key
 - **Snap Toggle**: `G` key
 
-<!-- CLI removed: SpectroSampler now ships GUI only -->
-
 ## GUI Usage
 
 ### Opening Files
@@ -226,7 +224,7 @@ Project files are saved in JSON format and can be opened in any text editor if n
   - Change detection or export settings
   - Modify grid settings
 - Undoing all changes back to the saved state clears the modified flag
-- Closing the window with unsaved changes prompts you to save
+- Closing the window with unsaved changes prompts you to save or discard
 
 #### Project File Format
 
@@ -237,28 +235,6 @@ Project files use the `.ssproj` extension and contain:
 - Audio file path (relative or absolute)
 
 **Note**: Project files store the audio file path, not the audio data itself. Keep your audio files accessible, or use absolute paths if you move projects between computers.
-
-<!-- CLI options removed -->
-
-## Output Structure
-
-```
-output_dir/
-  <basename>/
-    samples/
-      <basename>_sample_000_1.0s-2.0s_detector-voice.wav
-      ...
-    spectrograms/
-      <basename>_spectrogram.png
-      <basename>_spectrogram_marked.png
-    markers/
-      audacity_labels.txt
-      reaper_regions.csv
-    data/
-      timestamps.csv
-      summary.json
-      run.log
-```
 
 ## Development
 

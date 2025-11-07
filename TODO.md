@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 3 items, P1: 26 items, P2: 18 items_
+_Summary: P0: 2 items, P1: 26 items, P2: 18 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -32,11 +32,6 @@ _Summary: P0: 3 items, P1: 26 items, P2: 18 items_
   - Acceptance:
     - Documented default set per detector.
     - Measurable precision/recall improvement on a small reference clip set.
-- [ ] [P0] Preserve existing samples on re-detect
-  - Re-running detection must not auto-delete existing segments; handle overlaps via UI.
-  - Acceptance:
-    - Existing segments remain intact after detect.
-    - Overlaps handled by the Overlaps & Duplicates workflow (see below).
 
 ### Audio Playback
 - [ ] [P1] Improve seamless looping for short samples
@@ -117,12 +112,15 @@ _Summary: P0: 3 items, P1: 26 items, P2: 18 items_
   - Acceptance: Markers visible on ruler, listed in a panel/menu, clickable to jump; persist in project files. [Docs Impact]
 
 ### Overlaps & Duplicates
-- [ ] [P1] Overlap resolution workflow (when new detections overlap existing)
-  - Options: Discard Overlaps, Discard Duplicates (identical), Keep All; with hover tooltips.
-  - Acceptance: Dialog appears on conflicts or respects default behavior if disabled. [Docs Impact]
 - [ ] [P2] Duplicate sample detection warning
   - Warn on high overlap or similarity threshold.
   - Acceptance: Warning badge in table and quick-fix to remove duplicates.
+- [ ] [P1] Add edit menu actions for removing overlaps and duplicates
+  - Add `Remove All Overlaps` and `Remove All Duplicates` under the `Edit` menu.
+  - Acceptance:
+    - `Remove All Overlaps` keeps the earliest-starting sample in each overlap group and removes the rest.
+    - `Remove All Duplicates` removes samples whose start/end times are within 5 ms of another sample, keeping one per set.
+    - Actions disable when no overlaps or duplicates are detected.
 
 ### Project Management
 - No items currently planned
