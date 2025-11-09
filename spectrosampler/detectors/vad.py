@@ -67,15 +67,6 @@ class VoiceVADDetector(BaseDetector):
         Returns:
             List of detected voice segments.
         """
-        # TODO: Implement VAD detection
-        # 1. Optionally apply bandpass (low_freq, high_freq) via FFmpeg or numpy
-        # 2. Convert audio to int16 PCM
-        # 3. Process in frames of frame_size samples
-        # 4. Collect voice frames
-        # 5. Merge consecutive voice frames
-        # 6. Filter by min_duration_ms
-        # 7. Return list of Segment objects
-
         if not self._vad_available:
             return []
 

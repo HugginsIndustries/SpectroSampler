@@ -75,8 +75,6 @@ def sanitize_filename(name: str, max_length: int = 200) -> str:
     Returns:
         Sanitized filename safe for filesystem use.
     """
-    # TODO: Replace invalid characters (Windows + Linux), remove control chars,
-    #       handle non-ASCII gracefully, truncate if needed
     invalid_chars = '<>:"/\\|?*'
     sanitized = name
     for char in invalid_chars:
@@ -120,7 +118,6 @@ def format_duration(seconds: float, precision: int = 1) -> str:
     Returns:
         Formatted string like "1h 23m 45.6s" or "45.6s".
     """
-    # TODO: Implement hours/minutes formatting for long durations
     if seconds < 60:
         return f"{seconds:.{precision}f}s"
     minutes = int(seconds // 60)

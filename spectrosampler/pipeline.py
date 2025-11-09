@@ -270,10 +270,6 @@ def deduplicate_segments_after_padding(
     Returns:
         Deduplicated segments (merged overlaps).
     """
-    # TODO: Implement deduplication after padding
-    # 1. Compute padded start/end for each segment
-    # 2. Merge overlapping padded segments
-    # 3. Return merged list
     if not segments:
         return []
 
@@ -628,7 +624,6 @@ class Pipeline:
         self.settings = settings
         self.cache: AudioCache | None = None
         if settings.cache:
-            # TODO: Initialize cache directory
             cache_dir = Path.home() / ".spectrosampler" / "cache"
             self.cache = AudioCache(cache_dir)
 
@@ -652,11 +647,6 @@ class Pipeline:
             resume: Skip already processed files.
             skip_existing: Skip samples that already exist.
         """
-        # TODO: Implement batch processing
-        # - Handle single file vs directory
-        # - Parallelize with jobs > 1
-        # - Progress bars with tqdm
-        # - Resume/skip logic
         if input_path.is_file():
             process_file(input_path, output_dir, self.settings, self.cache)
         elif input_path.is_dir():
@@ -667,7 +657,6 @@ class Pipeline:
                 return
 
             for audio_file in tqdm(audio_files, desc="Processing files"):
-                # TODO: Parallelize with jobs > 1
                 process_file(audio_file, output_dir, self.settings, self.cache)
         else:
             raise ValueError(f"Input path does not exist: {input_path}")

@@ -152,7 +152,6 @@ def spectral_flatness(magnitude_spectrum: np.ndarray, eps: float = 1e-10) -> flo
     Returns:
         Flatness value (0-1, higher = more flat/noisy).
     """
-    # TODO: Compute geometric mean / arithmetic mean
     magnitude_spectrum = magnitude_spectrum + eps
     geometric_mean = np.exp(np.mean(np.log(magnitude_spectrum)))
     arithmetic_mean = np.mean(magnitude_spectrum)
@@ -189,6 +188,5 @@ def bandpass_filter(
     Returns:
         Filtered audio (placeholder returns input).
     """
-    # TODO: Implement or delegate to FFmpeg highpass/lowpass
-    # For now, this is a placeholder as filtering is done via FFmpeg
+    # Placeholder: actual filtering is delegated to FFmpeg during export/detection.
     return audio

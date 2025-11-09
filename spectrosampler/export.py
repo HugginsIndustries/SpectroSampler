@@ -120,10 +120,6 @@ def export_markers_audacity(
         pre_pad_ms: Pre-padding in milliseconds (if include_padding).
         post_pad_ms: Post-padding in milliseconds (if include_padding).
     """
-    # TODO: Implement Audacity label format
-    # Format: {start_sec}\t{end_sec}\t{label}\n
-    # Label: "sample_{index:03d} {detector}"
-    # If include_padding, add padding to start/end
     ensure_dir(output_path.parent)
     with open(output_path, "w", encoding="utf-8") as f:
         for i, seg in enumerate(segments):
@@ -150,9 +146,6 @@ def export_markers_reaper(
         pre_pad_ms: Pre-padding in milliseconds (if include_padding).
         post_pad_ms: Post-padding in milliseconds (if include_padding).
     """
-    # TODO: Implement REAPER region CSV format
-    # Header: Name,Start,End,Length
-    # Format: "sample_{index:03d} {detector}",{start_sec},{end_sec},{duration_sec}
     ensure_dir(output_path.parent)
     import csv
 
@@ -184,9 +177,6 @@ def export_timestamps_csv(
         pre_pad_ms: Pre-padding in milliseconds (if include_padding).
         post_pad_ms: Post-padding in milliseconds (if include_padding).
     """
-    # TODO: Implement timestamps CSV
-    # Header: id,start_sec,end_sec,duration_sec,detector,score
-    # Data: index, start (with padding if requested), end, duration, detector name, score
     ensure_dir(output_path.parent)
     import csv
 

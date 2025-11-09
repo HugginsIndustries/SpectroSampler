@@ -141,16 +141,6 @@ def create_html_report(
         settings: Processing settings used.
         detector_stats: Statistics from detectors (e.g., counts per detector).
     """
-    # TODO: Implement HTML report
-    # Structure:
-    # - Header with file info and settings summary
-    # - Table of segments (id, start, end, duration, detector, score)
-    # - Links to:
-    #   - samples/*.wav
-    #   - spectrograms/*.png
-    #   - markers/*.txt, *.csv
-    #   - data/summary.json
-    # Use simple HTML/CSS, no external dependencies
     ensure_dir(output_dir)
     html_path = output_dir / f"{base_name}_report.html"
     logging.debug(f"Creating HTML report: {html_path}")

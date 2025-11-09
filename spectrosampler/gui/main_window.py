@@ -1505,9 +1505,7 @@ class MainWindow(QMainWindow):
         if geometry.get("editorSplitterSizes"):
             sizes = geometry["editorSplitterSizes"]
             if isinstance(sizes, list) and len(sizes) >= 2:
-                # Find editor splitter - it's the horizontal splitter in the editor
-                # This is a bit complex, but we can restore it if we find it
-                pass  # TODO: Implement if needed
+                pass
 
         if geometry.get("playerSplitterSizes"):
             sizes = geometry["playerSplitterSizes"]
