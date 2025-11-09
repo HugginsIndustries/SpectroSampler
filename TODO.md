@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 29 items, P2: 20 items_
+_Summary: P0: 0 items, P1: 34 items, P2: 22 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -32,6 +32,10 @@ _Summary: P0: 0 items, P1: 29 items, P2: 20 items_
   - Acceptance:
     - Documented default set per detector.
     - Measurable precision/recall improvement on a small reference clip set.
+- [ ] [P1] Finish WebRTC VAD detection pipeline (from `spectrosampler/detectors/vad.py:VoiceVADDetector.detect`)
+  - Acceptance:
+    - Optional bandpass filtering and frame merging honor `min_duration_ms` and aggressiveness while remaining thread-safe.
+    - Unit tests cover voiced/unvoiced fixtures and assert consistent segment counts when `webrtcvad` is available.
 
 ### Audio Playback
 - [ ] [P1] Improve seamless looping for short samples
@@ -53,17 +57,31 @@ _Summary: P0: 0 items, P1: 29 items, P2: 20 items_
   - Acceptance: Warning dialog includes “Try alternate resample” that re-runs analysis.
 
 ### Code Quality & Robustness
-- [ ] [P2] Complete code TODOs (targeted)
-  - `dsp.py`: Implement geometric mean helpers; add high/low-pass wrappers (or delegate to FFmpeg) and remove placeholder comments once wired up.
-  - `utils.py`: Finalize `sanitize_filename` (handle non-ASCII via Unicode normalization and safe replacements) and `format_duration` (hh:mm:ss.s formatting).
-  - `export.py`: Verify markers export functions; if already complete, remove lingering TODO comments; add minimal tests for Audacity/Reaper outputs.
-  - `report.py`: Implement HTML report generation (replace stub) and cover with smoke test.
-  - `pipeline.py`: Revisit batch processing/parallelization TODOs; define thread-safety constraints and ensure progress reporting remains consistent.
-  - `detectors/vad.py`: Finish WebRTC VAD detection pipeline (bandpass, frame merge, min duration guards) and document remaining limitations.
-  - Acceptance: Items above implemented or explicitly re-tracked here; obsolete TODO comments removed; basic unit tests added where applicable.
+- [ ] [P1] Harden sanitize_filename cross-platform (from `spectrosampler/utils.py:sanitize_filename`)
+  - Acceptance:
+    - Reserved characters, control codes, and decomposed Unicode normalize to safe filenames on Windows, macOS, and Linux.
+    - Unit tests cover long names, Windows reserved words, and mixed Unicode so exports never fail validation.
+- [ ] [P1] Verify marker export formats (from `spectrosampler/export.py`)
+  - Acceptance:
+    - Audacity label, REAPER region CSV, and timestamps CSV outputs match published schemas and reflect optional padding flags.
+    - Regression tests open the generated files and assert headers/rows align with expectations.
+- [ ] [P2] Implement reusable bandpass filter helper (from `spectrosampler/dsp.py:bandpass_filter`)
+  - Acceptance:
+    - Helper applies an actual filter (NumPy or FFmpeg delegation) with parameterized tests covering low/high cutoff behavior.
+    - Detectors and pipelines can call the helper instead of a no-op without noticeable performance regressions.
 - [ ] [P1] Add input validation for settings ranges
   - Validate durations, paddings, thresholds, etc.; disable invalid UI inputs or surface validation messages.
   - Acceptance: Impossible values cannot be entered or are rejected with clear guidance.
+
+### Processing Pipeline
+- [ ] [P1] Build resilient batch processing runner (from `spectrosampler/pipeline.py:Pipeline.process`)
+  - Acceptance:
+    - Directory processing handles large trees with resume/skip flags, per-file progress, and `jobs>1` parallel execution.
+    - Unit tests or integration smoke tests cover single-file and directory workflows, ensuring deterministic output order.
+- [ ] [P2] Configure audio cache lifecycle (from `spectrosampler/pipeline.py:Pipeline.__init__`)
+  - Acceptance:
+    - Cache directory location is configurable, created on demand, and pruned of stale entries without user intervention.
+    - Documentation outlines defaults and environment overrides for the cache path.
 
 ## **Features**
 
@@ -94,6 +112,10 @@ _Summary: P0: 0 items, P1: 29 items, P2: 20 items_
 - [ ] [P1] Add multi-select in sample table
   - Ctrl/Shift selection enabling bulk operations.
   - Acceptance: Bulk delete/export/rename across selected rows.
+- [ ] [P2] Restore editor splitter layout on load (from `spectrosampler/gui/main_window.py:_restore_window_geometry`)
+  - Acceptance:
+    - Saving and reopening a project restores the inner editor splitter sizes exactly as previously stored.
+    - Automated GUI test or manual checklist verifies collapse/expand state survives restart.
 - [ ] [P2] Add zoom to fit selection
   - Shortcut/button to fit selected samples in view.
   - Acceptance: View window adjusts to encompass selected segments.
@@ -146,6 +168,10 @@ _Summary: P0: 0 items, P1: 29 items, P2: 20 items_
 - [ ] [P1] Add export progress with cancel and final summary
   - Progress bar, ETA, safe cancel; end-of-run dialog summarizing per-sample status.
   - Acceptance: Summary lists success/failures; cancel cleans temporary files. [Docs Impact]
+- [ ] [P1] Expand HTML report contents (from `spectrosampler/report.py:create_html_report`)
+  - Acceptance:
+    - Report includes processing settings summary, detector statistics, and deep links to generated assets.
+    - Smoke test renders the HTML and validates required sections exist.
 - [ ] [P2] Add sample preview before export
   - Lightweight preview/edit dialog for boundaries and info.
   - Acceptance: Adjustments applied prior to writing files.
@@ -224,10 +250,10 @@ _Summary: P0: 0 items, P1: 29 items, P2: 20 items_
 - [ ] [P1] Add GUI integration tests for core workflows
   - File load → detect → edit → export happy path.
   - Acceptance: Stable tests passing in CI.
-- [ ] [P1] Exercise CLI integration workflow end-to-end
+- [ ] [P1] Add pipeline integration regression test (from `tests/test_cli_integration.py:test_cli_integration`)
   - Acceptance:
-    - `tests/test_cli_integration.py::test_cli_integration` invokes the CLI entry point or pipeline wrapper and produces exported audio/metadata in a temporary directory.
-    - The test asserts exported filenames and manifest counts match expected naming conventions.
+    - Test harness runs the pipeline entry point against synthetic audio, producing actual samples/markers in a temporary directory.
+    - Assertions validate exported filenames, manifest counts, and metadata contents.
 - [ ] [P2] Add performance benchmarks
   - Track detection, processing, and UI operations over time.
   - Acceptance: Baselines defined; regressions flagged.

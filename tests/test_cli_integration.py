@@ -135,9 +135,7 @@ def test_sanitize_filename():
 
 
 def test_cli_integration(test_audio_file: Path, test_output_dir: Path):
-    """Integration test: run CLI on synthetic audio, verify outputs exist."""
-    # TODO: Call actual CLI via subprocess or direct pipeline call
-    # For Phase 1, this is a stub that verifies the test audio was created
+    """Integration test placeholder to ensure test audio generation and output structure exists."""
     assert test_audio_file.exists()
     assert test_audio_file.stat().st_size > 0
 
