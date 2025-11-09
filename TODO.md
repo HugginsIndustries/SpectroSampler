@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 26 items, P2: 18 items_
+_Summary: P0: 0 items, P1: 29 items, P2: 20 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -57,7 +57,9 @@ _Summary: P0: 0 items, P1: 26 items, P2: 18 items_
   - `dsp.py`: Implement geometric mean helpers; add high/low-pass wrappers (or delegate to FFmpeg) and remove placeholder comments once wired up.
   - `utils.py`: Finalize `sanitize_filename` (handle non-ASCII via Unicode normalization and safe replacements) and `format_duration` (hh:mm:ss.s formatting).
   - `export.py`: Verify markers export functions; if already complete, remove lingering TODO comments; add minimal tests for Audacity/Reaper outputs.
+  - `report.py`: Implement HTML report generation (replace stub) and cover with smoke test.
   - `pipeline.py`: Revisit batch processing/parallelization TODOs; define thread-safety constraints and ensure progress reporting remains consistent.
+  - `detectors/vad.py`: Finish WebRTC VAD detection pipeline (bandpass, frame merge, min duration guards) and document remaining limitations.
   - Acceptance: Items above implemented or explicitly re-tracked here; obsolete TODO comments removed; basic unit tests added where applicable.
 - [ ] [P1] Add input validation for settings ranges
   - Validate durations, paddings, thresholds, etc.; disable invalid UI inputs or surface validation messages.
@@ -132,9 +134,11 @@ _Summary: P0: 0 items, P1: 26 items, P2: 18 items_
 - [ ] [P2] Add customizable keyboard shortcuts
   - Remapping UI with persistence.
   - Acceptance: Changes survive restart; conflicts are prevented.
-- [ ] [P1] Add overlap handling defaults in settings
-  - “Show Overlap Dialog” (default true) and default behavior when disabled.
-  - Acceptance: Behavior matches settings; persists in project. [Docs Impact]
+- [ ] [P1] Persist overlap handling defaults in project settings
+  - Ensure the settings panel writes dialog visibility and default behavior into `ProcessingSettings` so projects carry the preference.
+  - Acceptance:
+    - Saving and reopening a project restores overlap dialog visibility and default behavior.
+    - Overlap resolution uses the restored values without re-prompting when the dialog is disabled.
 
 ### Workflow Improvements
 
@@ -220,6 +224,10 @@ _Summary: P0: 0 items, P1: 26 items, P2: 18 items_
 - [ ] [P1] Add GUI integration tests for core workflows
   - File load → detect → edit → export happy path.
   - Acceptance: Stable tests passing in CI.
+- [ ] [P1] Exercise CLI integration workflow end-to-end
+  - Acceptance:
+    - `tests/test_cli_integration.py::test_cli_integration` invokes the CLI entry point or pipeline wrapper and produces exported audio/metadata in a temporary directory.
+    - The test asserts exported filenames and manifest counts match expected naming conventions.
 - [ ] [P2] Add performance benchmarks
   - Track detection, processing, and UI operations over time.
   - Acceptance: Baselines defined; regressions flagged.
