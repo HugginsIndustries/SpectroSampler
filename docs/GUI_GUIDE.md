@@ -68,7 +68,7 @@ Your choice is saved in user settings and stored with the current project, so re
 
 1. Drag-and-drop a file or use **File → Open Audio File** (`Ctrl+Shift+O`).
 2. Supported formats: WAV, FLAC, MP3, M4A, AAC (FFmpeg handles decoding).
-3. The status bar confirms sample rate, channels, and duration.
+3. The status bar confirms sample rate, channels, and duration. If loading fails, the dialog now names the cause (missing file, permissions, unsupported format, etc.) and lists actionable next steps so you can correct the issue without hunting through logs.
 
 ### 3.2 Choosing a Detector
 
@@ -179,6 +179,8 @@ Open the **Export** menu to configure session-wide parameters:
 - **Channels** – Mono, stereo, or “None (original)” to keep source layout.
 
 When ready, choose **File → Export Samples** (`Ctrl+E`). Only enabled (checked) columns are included. Exported filenames include the detector name, index, and source file id, and they are sanitized automatically so reserved characters or Windows device names never derail the export on any platform.
+
+If FFmpeg rejects the export (bad codec, unwritable directory, truncated audio), the error dialog shows the exact command, exit code, and a short checklist of fixes—try exporting a single sample, double-check permissions, or switch to WAV for widest compatibility.
 
 > Screenshot placeholder: `docs/images/export-menu.png`
 

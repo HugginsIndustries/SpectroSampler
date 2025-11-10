@@ -27,7 +27,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from spectrosampler.audio_io import FFmpegError
+from spectrosampler.audio_io import AudioLoadError, FFmpegError
 from spectrosampler.detectors.base import Segment
 from spectrosampler.gui.autosave import AutoSaveManager
 from spectrosampler.gui.detection_manager import DetectionManager
@@ -993,12 +993,24 @@ class MainWindow(QMainWindow):
             # Note: Loading screen will be hidden after overview generation completes
             # (via _on_overview_finished or _on_overview_error)
 
+        except AudioLoadError as exc:
+            if self._overview_manager.is_generating():
+                self._overview_manager.cancel()
+            self._loading_screen.hide_overlay()
+            message = exc.to_user_message()
+            QMessageBox.critical(self, "Audio Load Error", message)
+            logger.error("Failed to load audio file: %s", exc.cause, exc_info=exc)
         except (FFmpegError, OSError, RuntimeError, ValueError) as e:
             # Cancel overview generation if it was started
             if self._overview_manager.is_generating():
                 self._overview_manager.cancel()
             self._loading_screen.hide_overlay()
-            QMessageBox.critical(self, "Error", f"Failed to load audio file:\n{str(e)}")
+            error_message = (
+                e.to_user_message("Load audio file")
+                if isinstance(e, FFmpegError)
+                else f"Failed to load audio file:\n{str(e)}"
+            )
+            QMessageBox.critical(self, "Audio Load Error", error_message)
             logger.error("Failed to load audio file: %s", e, exc_info=e)
 
     def _collect_project_data(self) -> ProjectData:
@@ -1108,6 +1120,14 @@ class MainWindow(QMainWindow):
                 self.load_audio_file(audio_path)
                 # Note: Loading screen will be hidden after overview generation completes
                 # (via _on_overview_finished or _on_overview_error)
+            except AudioLoadError as exc:
+                if self._overview_manager.is_generating():
+                    self._overview_manager.cancel()
+                self._loading_screen.hide_overlay()
+                message = exc.to_user_message() + "\n\nProject could not be loaded."
+                QMessageBox.critical(self, "Audio Load Error", message)
+                logger.error("Failed to load audio file for project: %s", exc.cause, exc_info=exc)
+                return
             except (FFmpegError, OSError, RuntimeError, ValueError) as e:
                 # Cancel overview generation if it was started
                 if self._overview_manager.is_generating():
@@ -1115,8 +1135,13 @@ class MainWindow(QMainWindow):
                 self._loading_screen.hide_overlay()
                 QMessageBox.critical(
                     self,
-                    "Error",
-                    f"Failed to load audio file:\n{str(e)}\n\nProject could not be loaded.",
+                    "Audio Load Error",
+                    (
+                        e.to_user_message("Load audio file")
+                        if isinstance(e, FFmpegError)
+                        else f"Failed to load audio file:\n{str(e)}"
+                    )
+                    + "\n\nProject could not be loaded.",
                 )
                 logger.error("Failed to load audio file for project: %s", e, exc_info=e)
                 return
@@ -2707,7 +2732,11 @@ class MainWindow(QMainWindow):
                 self._status_label.setText(f"Exported {count} samples")
             except (FFmpegError, OSError, ValueError, RuntimeError) as e:
                 logger.error("Failed to export samples: %s", e, exc_info=e)
-                QMessageBox.critical(self, "Export Error", f"Failed to export samples:\n{str(e)}")
+                if isinstance(e, FFmpegError):
+                    message = e.to_user_message("Export samples")
+                else:
+                    message = f"Failed to export samples:\n{str(e)}"
+                QMessageBox.critical(self, "Export Error", message)
 
     def _on_about(self) -> None:
         """Handle about action."""

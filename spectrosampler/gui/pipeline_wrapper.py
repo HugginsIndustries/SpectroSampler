@@ -5,7 +5,7 @@ from concurrent.futures import CancelledError, Future, ProcessPoolExecutor
 from pathlib import Path
 from typing import Any
 
-from spectrosampler.audio_io import FFmpegError
+from spectrosampler.audio_io import AudioLoadError, FFmpegError
 from spectrosampler.detectors.base import Segment
 from spectrosampler.pipeline_settings import ProcessingSettings
 
@@ -71,6 +71,9 @@ class PipelineWrapper:
             self.current_audio_info = get_audio_info(audio_path)
             logger.info(f"Loaded audio: {audio_path}")
             return self.current_audio_info
+        except AudioLoadError as exc:
+            logger.error("Failed to load audio %s: %s", audio_path, exc.cause, exc_info=exc)
+            raise
         except (FFmpegError, OSError, ValueError) as exc:
             logger.error("Failed to load audio %s: %s", audio_path, exc, exc_info=exc)
             raise
@@ -207,6 +210,7 @@ class PipelineWrapper:
         from spectrosampler.export import build_sample_filename, export_sample
 
         exported_count = 0
+        last_error: FFmpegError | None = None
         for idx in selected_indices:
             if idx < 0 or idx >= len(self.current_segments):
                 continue
@@ -231,10 +235,35 @@ class PipelineWrapper:
                     channels=self.settings.channels,
                 )
                 exported_count += 1
-            except (FFmpegError, OSError, ValueError) as exc:
+            except FFmpegError as exc:
+                logger.error(
+                    "Failed to export sample %d to %s: %s",
+                    idx,
+                    output_path,
+                    exc,
+                    exc_info=exc,
+                )
+                last_error = FFmpegError(
+                    f"Sample export failed for index {idx}",
+                    command=exc.command,
+                    exit_code=exc.exit_code,
+                    stderr=exc.stderr,
+                    stdout=exc.stdout,
+                    suggestions=exc.suggestions
+                    + [
+                        "Ensure the export directory is writable.",
+                        "Try exporting a single sample to isolate the issue.",
+                    ],
+                )
+                break
+            except (OSError, ValueError) as exc:
                 logger.error(
                     "Failed to export sample %d to %s: %s", idx, output_path, exc, exc_info=exc
                 )
+                raise
+
+        if last_error is not None:
+            raise last_error
 
         logger.info(f"Exported {exported_count} samples")
         return exported_count

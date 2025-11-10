@@ -14,6 +14,7 @@ SpectroSampler is delivered as a GUI desktop app. Command-line usage is limited 
 - **Playback & Review** – Integrated sample player with looping, scrub bar, next/previous navigation, and sample table shortcuts (center/fill/play/delete).
 - **Export Pipeline** – Per-project format, sample rate, bit depth, channel configuration, and padding. Export selected samples without re-encoding by default (WAV/FLAC supported out of the box).
 - **Session Safety** – Project files capture every setting, autosave keeps rotating backups, and overlap resolution dialog protects existing edits when re-running detection.
+- **Guided Error Dialogs** – Load or export failures surface the failing FFmpeg command, exit code, and suggested fixes so you can recover quickly without digging through logs.
 
 > Looking for GUI usage details and walkthrough screenshots? See `docs/GUI_GUIDE.md`.
 
@@ -176,6 +177,7 @@ Files are JSON; you can inspect or version-control them. Autosaves keep the last
 - **GUI feels sluggish on big files** – Lower refresh rate (View → Limit UI Refresh Rate) or disable disabled-sample display.
 - **Overlap resolution keeps popping up** – Set a default choice and tick “Remember my choice,” or adjust detection thresholds to reduce duplicates.
 - **Audio missing when reopening project** – The `.ssproj` stores the file path only; relink if the audio moved.
+- **Load/Export dialog shows next steps** – If a load or export fails, the dialog now includes the exact FFmpeg command, exit code, and bullet-point recovery tips (check file existence, permissions, and codec support).
 
 ---
 

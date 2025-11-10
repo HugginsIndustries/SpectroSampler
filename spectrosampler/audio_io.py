@@ -1,18 +1,269 @@
 """Audio I/O and FFmpeg operations: denoising, cutting, analysis resampling."""
 
+from __future__ import annotations
+
 import json
 import logging
+import shlex
 import subprocess
+from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
 from spectrosampler.utils import compute_file_hash, ensure_dir
 
+logger = logging.getLogger(__name__)
+
+
+def _quote_command(command: Sequence[str]) -> str:
+    """Join a command sequence into a shell-escaped string."""
+
+    return " ".join(shlex.quote(part) for part in command)
+
+
+def _dedupe_suggestions(items: Iterable[str]) -> list[str]:
+    """Return unique suggestions while preserving order."""
+
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for item in items:
+        key = item.strip()
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        ordered.append(key)
+    return ordered
+
 
 class FFmpegError(Exception):
-    """Exception raised when FFmpeg operations fail."""
+    """Exception raised when FFmpeg operations fail with actionable context."""
 
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        command: Sequence[str] | None = None,
+        exit_code: int | None = None,
+        stderr: str | None = None,
+        stdout: str | None = None,
+        suggestions: Iterable[str] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.command: list[str] | None = list(command) if command is not None else None
+        self.exit_code = exit_code
+        self.stderr = (stderr or "").strip()
+        self.stdout = (stdout or "").strip()
+        self._suggestions = _dedupe_suggestions(
+            suggestions
+            or (
+                [
+                    "Verify FFmpeg is installed and accessible on PATH.",
+                    "Check that the source file exists and is readable.",
+                    "Ensure the output directory is writable.",
+                ]
+            )
+        )
+
+    @property
+    def suggestions(self) -> list[str]:
+        """Actionable hints for the caller."""
+
+        return list(self._suggestions)
+
+    def command_string(self) -> str:
+        """Return the command as a shell-escaped string."""
+
+        if not self.command:
+            return ""
+        return _quote_command(self.command)
+
+    def brief_stderr(self, max_lines: int = 6) -> str:
+        """Return a truncated view of stderr for display purposes."""
+
+        if not self.stderr:
+            return ""
+        lines = [line.rstrip() for line in self.stderr.splitlines() if line.strip()]
+        if len(lines) > max_lines:
+            return "\n".join(lines[: max_lines - 1] + ["… (truncated)"])
+        return "\n".join(lines)
+
+    def to_user_message(self, operation: str | None = None) -> str:
+        """Build a rich, user-facing message with context and guidance."""
+
+        label = operation or "FFmpeg operation"
+        lines = [f"{label} failed."]
+        if self.exit_code is not None:
+            lines.append(f"Exit code: {self.exit_code}")
+        if self.command:
+            lines.append(f"Command: {self.command_string()}")
+        stderr_preview = self.brief_stderr()
+        if stderr_preview:
+            lines.append("Details:")
+            lines.append(stderr_preview)
+        if self._suggestions:
+            lines.append("")
+            lines.append("Try this:")
+            for suggestion in self._suggestions:
+                lines.append(f"• {suggestion}")
+        return "\n".join(lines)
+
+
+class AudioLoadError(Exception):
+    """Represents a user-facing audio load failure with remediation hints."""
+
+    __slots__ = ("path", "cause", "suggestions", "details", "original")
+
+    def __init__(
+        self,
+        path: Path,
+        cause: str,
+        suggestions: Iterable[str],
+        details: str | None = None,
+        original: Exception | None = None,
+    ) -> None:
+        super().__init__(cause)
+        self.path = path
+        self.cause = cause
+        self.suggestions = tuple(_dedupe_suggestions(suggestions))
+        self.details = details
+        self.original = original
+        if original is not None:
+            self.__cause__ = original
+
+    def to_user_message(self) -> str:
+        """Return a detailed message suitable for dialog display."""
+
+        lines = [f"Could not open '{self.path.name}'."]
+        if self.cause:
+            lines.append(f"Cause: {self.cause}")
+        if self.details:
+            lines.append(self.details.strip())
+        if self.suggestions:
+            lines.append("")
+            lines.append("Try this:")
+            for suggestion in self.suggestions:
+                lines.append(f"• {suggestion}")
+        return "\n".join(lines)
+
+
+def _run_media_command(
+    command: Sequence[str],
+    *,
+    operation: str,
+    expect_success: bool = True,
+    suggestions: Iterable[str] | None = None,
+) -> subprocess.CompletedProcess:
+    """Execute an ffmpeg/ffprobe command with consistent error handling."""
+
+    try:
+        proc = subprocess.run(command, capture_output=True, text=True, check=False)
+    except FileNotFoundError as exc:
+        raise FFmpegError(
+            f"{operation} failed because FFmpeg is not available.",
+            command=command,
+            exit_code=None,
+            stderr="Executable not found on PATH.",
+            suggestions=[
+                "Install FFmpeg (https://ffmpeg.org/download.html) and restart the application.",
+                "Ensure the ffmpeg and ffprobe binaries are available on PATH.",
+            ],
+        ) from exc
+
+    if expect_success and proc.returncode != 0:
+        logger.error(
+            "%s failed (exit code %s) for command: %s",
+            operation,
+            proc.returncode,
+            _quote_command(command),
+        )
+        combined_suggestions = (
+            list(suggestions)
+            + [
+                "Verify FFmpeg is installed and accessible on PATH.",
+                "Check that the source file exists and is readable.",
+                "Ensure the output directory is writable.",
+            ]
+            if suggestions is not None
+            else None
+        )
+        raise FFmpegError(
+            f"{operation} failed with exit code {proc.returncode}.",
+            command=command,
+            exit_code=proc.returncode,
+            stderr=proc.stderr,
+            stdout=proc.stdout,
+            suggestions=combined_suggestions,
+        )
+    return proc
+
+
+def _build_load_error(
+    file_path: Path,
+    exc: Exception,
+    *,
+    default_details: str | None = None,
+) -> AudioLoadError:
+    """Translate low-level errors into actionable audio load failures."""
+
+    base_suggestions: list[str] = [
+        "Verify the file still exists at the selected location.",
+        "Check your read permissions for the file and containing directory.",
+    ]
+    cause = "Failed to open audio file"
+    details = default_details
+
+    if isinstance(exc, FileNotFoundError):
+        cause = "File not found"
+    elif isinstance(exc, PermissionError):
+        cause = "Permission denied"
+        base_suggestions.append("Close any other application that may be locking the file.")
+    elif isinstance(exc, IsADirectoryError):
+        cause = "Selected item is a directory"
+        details = "Please choose an audio file instead of a directory."
+    elif isinstance(exc, FFmpegError):
+        stderr_lower = exc.stderr.lower()
+        if "invalid data" in stderr_lower or "corrupt" in stderr_lower:
+            cause = "Unsupported or corrupt audio format"
+            details = (
+                default_details
+                or "FFmpeg could not decode the stream. Try re-exporting the audio or using a different format."
+            )
+            base_suggestions.extend(
+                [
+                    "Try converting the file to WAV or FLAC with FFmpeg or your DAW.",
+                    "If the file was recorded on portable media, copy it locally first.",
+                ]
+            )
+        elif "no such file or directory" in stderr_lower:
+            cause = "File not found"
+        elif "permission denied" in stderr_lower:
+            cause = "Permission denied"
+        elif exc.stderr:
+            details = exc.brief_stderr(max_lines=4) or default_details
+            base_suggestions.append("Review the FFmpeg details above for additional clues.")
+    elif isinstance(exc, json.JSONDecodeError):
+        cause = "Invalid metadata"
+        details = "ffprobe returned malformed metadata. The file may be truncated or unsupported."
+        base_suggestions.append("Verify the recording completes successfully and re-import.")
+    elif isinstance(exc, ValueError):
+        cause = str(exc) or "Invalid audio file"
+
+    return AudioLoadError(
+        path=file_path,
+        cause=cause,
+        details=details,
+        suggestions=tuple(_dedupe_suggestions(base_suggestions)),
+        original=exc,
+    )
+
+
+def _ensure_input_file(path: Path, *, purpose: str) -> None:
+    """Ensure the provided path points to a readable file before invoking FFmpeg."""
+
+    if not path.exists():
+        raise FileNotFoundError(f"{purpose}: input file not found: {path}")
+    if path.is_dir():
+        raise IsADirectoryError(f"{purpose}: expected a file but received directory: {path}")
 
 
 def check_ffmpeg() -> bool:
@@ -37,7 +288,47 @@ def get_audio_info(file_path: Path) -> dict:
     Returns:
         Dictionary with: duration (seconds), sample_rate (Hz), channels (int),
                           bit_depth (int), format (str).
+
+    Raises:
+        AudioLoadError: If the file cannot be opened or parsed.
     """
+    path = Path(file_path)
+    if not path.exists():
+        raise AudioLoadError(
+            path=path,
+            cause="File not found",
+            suggestions=(
+                "Verify the file still exists at the selected location.",
+                "If it lives on removable storage, make sure the drive is mounted.",
+            ),
+        )
+    if path.is_dir():
+        raise AudioLoadError(
+            path=path,
+            cause="Selected item is a directory",
+            details="Please choose an audio file instead of a directory.",
+            suggestions=("Pick a supported audio file (e.g., WAV, FLAC, MP3).",),
+        )
+    try:
+        stat = path.stat()
+    except PermissionError as exc:
+        raise AudioLoadError(
+            path=path,
+            cause="Permission denied",
+            suggestions=(
+                "Check your read permissions for the file.",
+                "Close any other applications that may be locking the file.",
+            ),
+            original=exc,
+        ) from exc
+    if stat.st_size == 0:
+        raise AudioLoadError(
+            path=path,
+            cause="File is empty",
+            details="The selected audio file contains no data.",
+            suggestions=("Re-export or re-record the audio file before importing it.",),
+        )
+
     cmd = [
         "ffprobe",
         "-v",
@@ -46,12 +337,18 @@ def get_audio_info(file_path: Path) -> dict:
         "json",
         "-show_format",
         "-show_streams",
-        str(file_path),
+        str(path),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise FFmpegError(f"ffprobe failed: {proc.stderr}")
-    data = json.loads(proc.stdout or "{}")
+    try:
+        proc = _run_media_command(cmd, operation="Read audio metadata")
+    except FFmpegError as exc:
+        raise _build_load_error(path, exc) from exc
+
+    try:
+        data = json.loads(proc.stdout or "{}")
+    except json.JSONDecodeError as exc:
+        raise _build_load_error(path, exc) from exc
+
     streams = data.get("streams", [])
     astream: dict[str, Any] = next((s for s in streams if s.get("codec_type") == "audio"), {})
     fmt = data.get("format", {})
@@ -109,8 +406,22 @@ def denoise_audio(
         arnndn_model: Optional path to arnndn model file (.mdl).
 
     Raises:
+        ValueError: If the requested settings are invalid.
         FFmpegError: If FFmpeg operation fails.
     """
+    valid_methods = {"arnndn", "afftdn", "off"}
+    if method not in valid_methods:
+        raise ValueError(f"method must be one of {sorted(valid_methods)}")
+    if highpass_hz is not None and highpass_hz < 0:
+        raise ValueError("highpass_hz must be non-negative")
+    if lowpass_hz is not None and lowpass_hz < 0:
+        raise ValueError("lowpass_hz must be non-negative")
+    if nr_strength <= 0:
+        raise ValueError("nr_strength must be positive")
+
+    input_path = Path(input_path)
+    output_path = Path(output_path)
+    _ensure_input_file(input_path, purpose="Denoise audio")
     ensure_dir(output_path.parent)
     logging.info(f"Denoising {input_path} -> {output_path} (method={method})")
     filters: list[str] = []
@@ -124,9 +435,14 @@ def denoise_audio(
         filters.append(f"afftdn=nr={nr_strength}:nt=w")
     af = ",".join(filters) if filters else "anull"
     cmd = ["ffmpeg", "-y", "-i", str(input_path), "-af", af, str(output_path)]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise FFmpegError(proc.stderr)
+    _run_media_command(
+        cmd,
+        operation="Denoise audio",
+        suggestions=[
+            "Check that the selected denoise method is supported by your FFmpeg build.",
+            "Confirm the input file is readable and the output directory is writable.",
+        ],
+    )
 
 
 def resample_for_analysis(
@@ -141,8 +457,17 @@ def resample_for_analysis(
         channels: Target number of channels (1=mono).
 
     Raises:
+        ValueError: If the requested settings are invalid.
         FFmpegError: If FFmpeg operation fails.
     """
+    if target_sr <= 0:
+        raise ValueError("target_sr must be a positive integer")
+    if channels not in (1, 2):
+        raise ValueError("channels must be either 1 (mono) or 2 (stereo)")
+
+    input_path = Path(input_path)
+    output_path = Path(output_path)
+    _ensure_input_file(input_path, purpose="Resample audio")
     ensure_dir(output_path.parent)
     logging.debug(f"Resampling {input_path} -> {output_path} ({target_sr} Hz, {channels}ch)")
     cmd = [
@@ -158,9 +483,14 @@ def resample_for_analysis(
         "s16",
         str(output_path),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise FFmpegError(proc.stderr)
+    _run_media_command(
+        cmd,
+        operation="Resample audio",
+        suggestions=[
+            "Check that the input file is readable and not truncated.",
+            "Ensure the requested sample rate is supported by FFmpeg.",
+        ],
+    )
 
 
 def extract_sample(
@@ -196,12 +526,32 @@ def extract_sample(
         lufs_target: Optional LUFS target for loudness normalization.
 
     Raises:
+        ValueError: If the requested settings are invalid.
         FFmpegError: If FFmpeg operation fails.
     """
+    if end_sec <= start_sec:
+        raise ValueError("end_sec must be greater than start_sec")
+    if fade_in_ms < 0 or fade_out_ms < 0:
+        raise ValueError("fade durations must be non-negative")
+    if format and format.lower() not in {"wav", "flac"}:
+        raise ValueError("format must be 'wav' or 'flac'")
+    if channels and channels not in {"mono", "stereo"}:
+        raise ValueError("channels must be 'mono', 'stereo', or None")
+    if sample_rate is not None and sample_rate <= 0:
+        raise ValueError("sample_rate must be a positive integer")
+    if bit_depth and bit_depth not in {"16", "24", "32f"}:
+        raise ValueError("bit_depth must be one of {'16', '24', '32f'}")
+
+    input_path = Path(input_path)
+    output_path = Path(output_path)
+    _ensure_input_file(input_path, purpose="Export audio sample")
     ensure_dir(output_path.parent)
+
+    duration = end_sec - start_sec
     logging.debug(f"Extracting sample: {start_sec:.3f}s-{end_sec:.3f}s -> {output_path}")
-    duration = max(0.0, end_sec - start_sec)
+
     # Try stream copy first (skip for WAV to ensure precise duration)
+    fast_copy_succeeded = False
     if (format or "").lower() != "wav" and not str(output_path).lower().endswith(".wav"):
         cmd_copy = [
             "ffmpeg",
@@ -216,9 +566,15 @@ def extract_sample(
             "copy",
             str(output_path),
         ]
-        proc = subprocess.run(cmd_copy, capture_output=True, text=True)
-        if proc.returncode == 0:
-            return
+        proc = _run_media_command(
+            cmd_copy,
+            operation="Fast sample export",
+            expect_success=False,
+        )
+        fast_copy_succeeded = proc.returncode == 0
+    if fast_copy_succeeded:
+        return
+
     # Fallback: re-encode
     af_filters: list[str] = []
     if fade_in_ms and fade_in_ms > 0:
@@ -230,6 +586,7 @@ def extract_sample(
         af_filters.append(f"loudnorm=I={lufs_target}")
     elif normalize:
         af_filters.append("dynaudnorm")
+
     cmd = [
         "ffmpeg",
         "-y",
@@ -247,15 +604,21 @@ def extract_sample(
     if sample_rate:
         cmd += ["-ar", str(sample_rate)]
     if bit_depth:
-        sample_fmt = {"16": "s16", "24": "s32", "32f": "fltp"}.get(bit_depth, None)
-        if sample_fmt:
-            cmd += ["-sample_fmt", sample_fmt]
+        sample_fmt = {"16": "s16", "24": "s32", "32f": "fltp"}[bit_depth]
+        cmd += ["-sample_fmt", sample_fmt]
     if format:
         cmd += ["-f", format]
     cmd += [str(output_path)]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise FFmpegError(proc.stderr)
+
+    _run_media_command(
+        cmd,
+        operation="Export audio sample",
+        suggestions=[
+            "Ensure the output directory is writable.",
+            "Try exporting to WAV if your FFmpeg build cannot write the requested format.",
+            "Confirm the source audio is readable and not truncated.",
+        ],
+    )
 
 
 def generate_spectrogram_png(
@@ -277,13 +640,21 @@ def generate_spectrogram_png(
     Raises:
         FFmpegError: If FFmpeg operation fails.
     """
+    input_path = Path(input_path)
+    output_path = Path(output_path)
+    _ensure_input_file(input_path, purpose="Create spectrogram image")
     ensure_dir(output_path.parent)
     logging.debug(f"Generating spectrogram PNG: {input_path} -> {output_path}")
     vf = f"showspectrumpic=s={size}:legend=disabled:color=intensity:scale={scale}:gain={gain_db}"
     cmd = ["ffmpeg", "-y", "-i", str(input_path), "-lavfi", vf, str(output_path)]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise FFmpegError(proc.stderr)
+    _run_media_command(
+        cmd,
+        operation="Create spectrogram image",
+        suggestions=[
+            "Verify the input file is readable and supported by FFmpeg.",
+            "Check that the output directory is writable.",
+        ],
+    )
 
 
 def generate_spectrogram_video(
@@ -307,13 +678,22 @@ def generate_spectrogram_video(
     Raises:
         FFmpegError: If FFmpeg operation fails.
     """
+    input_path = Path(input_path)
+    output_path = Path(output_path)
+    _ensure_input_file(input_path, purpose="Create spectrogram video")
     ensure_dir(output_path.parent)
     logging.debug(f"Generating spectrogram video: {input_path} -> {output_path}")
     vf = f"showspectrum=fstart={fstart}:fstop={fstop}:size={size}:color=intensity:scale=log:legend=disabled:gain={gain_db}"
     cmd = ["ffmpeg", "-y", "-i", str(input_path), "-lavfi", vf, str(output_path)]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise FFmpegError(proc.stderr)
+    _run_media_command(
+        cmd,
+        operation="Create spectrogram video",
+        suggestions=[
+            "Verify the input file is readable and supported by FFmpeg.",
+            "Check that the output directory is writable.",
+            "Try reducing resolution if FFmpeg cannot allocate enough memory.",
+        ],
+    )
 
 
 class AudioCache:
