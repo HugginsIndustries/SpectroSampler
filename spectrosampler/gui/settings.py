@@ -275,6 +275,29 @@ class SettingsManager:
         self._settings.setValue("maxRecentAudioFiles", count)
         self._settings.sync()
 
+    def get_detection_max_samples(self) -> int:
+        """Return the stored detection max samples cap (defaults to 256).
+
+        The value is clamped to the supported UI range so restoring from older
+        settings files cannot push the slider outside 1–10,000.
+        """
+        value = self._settings.value("detectionMaxSamples", 256, type=int)
+        try:
+            max_samples = int(value)
+        except (TypeError, ValueError):
+            return 256
+        return max(1, min(10_000, max_samples))
+
+    def set_detection_max_samples(self, max_samples: int) -> None:
+        """Persist the detection max samples cap for future sessions."""
+        try:
+            max_samples = int(max_samples)
+        except (TypeError, ValueError):
+            max_samples = 256
+        max_samples = max(1, min(10_000, max_samples))
+        self._settings.setValue("detectionMaxSamples", max_samples)
+        self._settings.sync()
+
     def get_theme_preference(self) -> str:
         """Return stored theme preference ('system', 'dark', or 'light')."""
         value = self._settings.value("themePreference", "system")

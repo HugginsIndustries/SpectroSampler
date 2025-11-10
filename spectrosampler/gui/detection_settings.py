@@ -263,8 +263,20 @@ class DetectionSettingsPanel(QWidget):
         layout.addRow("Min gap:", self._min_gap_slider["widget"])
 
         # Max samples
+        try:
+            stored_max_samples = self._settings_manager.get_detection_max_samples()
+        except (OSError, RuntimeError, ValueError, TypeError) as exc:
+            logger.warning(
+                "Failed to restore persisted max samples value, falling back to defaults: %s",
+                exc,
+                exc_info=exc,
+            )
+            stored_max_samples = int(self._settings.max_samples)
+        else:
+            self._settings.max_samples = int(stored_max_samples)
+
         self._max_samples_slider = self._create_slider_spin(
-            1, 1024, int(self._settings.max_samples), ""
+            1, 10_000, int(self._settings.max_samples), ""
         )
         self._max_samples_slider["slider"].valueChanged.connect(self._on_max_samples_changed)
         layout.addRow("Max samples:", self._max_samples_slider["widget"])
@@ -418,7 +430,22 @@ class DetectionSettingsPanel(QWidget):
 
     def _on_max_samples_changed(self, value: int) -> None:
         """Handle max samples change."""
-        self._settings.max_samples = int(value)
+        clamped_value = max(1, min(10_000, int(value)))
+        if clamped_value != value:
+            # Keep UI controls and settings in sync if the input was out of range.
+            slider = self._max_samples_slider["slider"]
+            spinbox = self._max_samples_slider["spinbox"]
+            old_block_slider = slider.blockSignals(True)
+            old_block_spin = spinbox.blockSignals(True)
+            slider.setValue(clamped_value)
+            spinbox.setValue(clamped_value)
+            slider.blockSignals(old_block_slider)
+            spinbox.blockSignals(old_block_spin)
+        self._settings.max_samples = clamped_value
+        try:
+            self._settings_manager.set_detection_max_samples(clamped_value)
+        except (OSError, RuntimeError, ValueError, TypeError) as exc:
+            logger.warning("Failed to persist max samples preference: %s", exc, exc_info=exc)
         self._on_settings_changed()
 
     def _on_sample_spread_changed(self, state: int) -> None:

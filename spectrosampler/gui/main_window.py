@@ -9,7 +9,7 @@ from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
-from PySide6.QtCore import QPoint, QSize, Qt, QUrl
+from PySide6.QtCore import QPoint, QSignalBlocker, QSize, Qt, QUrl
 from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import (
@@ -1136,8 +1136,32 @@ class MainWindow(QMainWindow):
                     if isinstance(settings.threshold, (int, float))
                     else 50.0
                 )
+                # Restore the max samples control so projects with higher caps reopen correctly.
+                slider_bundle = self._settings_panel._max_samples_slider
+                slider = slider_bundle["slider"]
+                spinbox = slider_bundle["spinbox"]
+                try:
+                    max_samples_value = int(settings.max_samples)
+                except (TypeError, ValueError):
+                    max_samples_value = slider.value()
+                max_samples_value = max(1, min(10_000, max_samples_value))
+                slider_blocker = QSignalBlocker(slider)
+                spinbox_blocker = QSignalBlocker(spinbox)
+                slider.setValue(max_samples_value)
+                spinbox.setValue(max_samples_value)
+                del slider_blocker, spinbox_blocker
+                try:
+                    self._settings_panel._settings_manager.set_detection_max_samples(
+                        max_samples_value
+                    )
+                except (OSError, RuntimeError, ValueError, TypeError) as exc:
+                    logger.debug(
+                        "Failed to persist project max samples value to settings: %s",
+                        exc,
+                        exc_info=exc,
+                    )
                 # Update other settings controls...
-                # For now, we'll just update the mode and threshold as examples
+                # For now, we'll just update a subset as examples
                 # A more complete implementation would update all controls
             except (ValueError, TypeError, KeyError, RuntimeError) as e:
                 logger.warning("Failed to restore detection settings: %s", e, exc_info=e)

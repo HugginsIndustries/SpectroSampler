@@ -87,7 +87,7 @@ Adjust the **Threshold** slider to refine sensitivity. Lower values detect more 
 - **Detection pre/post padding** – Add context around detected regions before they appear in the table.
 - **Merge gap / min gap** – Automatically merge detections or insist on spacing between them.
 - **Min/Max duration** – Clamp sample length.
-- **Max samples** – Cap the total number of detections.
+- **Max samples** – Cap the total number of detections (1–10,000, stored between sessions).
 - **Sample spread** – Keep detections evenly spaced (strict or closest).
 - **Overlap Resolution** – Decide how to handle duplicates/overlaps when re-running detection; pick defaults and optionally remember them.
 
@@ -211,7 +211,7 @@ Large projects benefit from leaving the info table collapsed while you fine-tune
 | Symptom | Try This |
 | --- | --- |
 | Audio file fails to load | Confirm the file plays in another app. Verify FFmpeg is installed and on PATH. |
-| Detection returns nothing | Lower the threshold, reduce minimum duration, or switch detectors. Ensure `Max samples` isn’t set too low. |
+| Detection returns nothing | Lower the threshold, reduce minimum duration, or switch detectors. Ensure `Max samples` isn’t set too low (the slider now spans 1–10,000). |
 | Overlap dialog shows every run | Set a preferred default and tick “Remember my choice,” then re-run detection. |
 | Playback is silent | Check workstation audio output, confirm the sample’s Enable checkbox is on, and ensure the sample isn’t muted in your OS mixer. |
 | GUI stutters on long files | Lower the refresh rate, collapse panels, or reduce zoom. Close other heavy applications. |

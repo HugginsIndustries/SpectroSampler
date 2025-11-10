@@ -9,7 +9,7 @@ SpectroSampler is delivered as a GUI desktop app. Command-line usage is limited 
 ## Highlights
 
 - **Guided Workspace** – Welcome screen with recent projects/audio, autosave controls, and persistent window layout.
-- **Detection Engine** – Multiple detectors (auto mix, voice VAD, transient, non-silence energy, spectral interestingness) with per-mode thresholds, merge rules, gap/duration guards, and multi-core processing control (`CPU workers`). Voice VAD pre-filters audio with a configurable 200–4500 Hz band-pass before WebRTC scoring so speech-focused projects stay cleaner.
+- **Detection Engine** – Multiple detectors (auto mix, voice VAD, transient, non-silence energy, spectral interestingness) with per-mode thresholds, merge rules, gap/duration guards, a 1–10,000 sample cap, and multi-core processing control (`CPU workers`). Voice VAD pre-filters audio with a configurable 200–4500 Hz band-pass before WebRTC scoring so speech-focused projects stay cleaner.
 - **Editing Surface** – High-resolution spectrogram (0.5×–32× zoom), navigator overview, draggable sample markers, context actions (disable others, center/fill view), and lockable grid snapping (time or musical bars).
 - **Playback & Review** – Integrated sample player with looping, scrub bar, next/previous navigation, and sample table shortcuts (center/fill/play/delete).
 - **Export Pipeline** – Per-project format, sample rate, bit depth, channel configuration, and padding. Export selected samples without re-encoding by default (WAV/FLAC supported out of the box).
@@ -99,7 +99,7 @@ spectrosampler-gui --version          Show version and exit
 ### Running Detection
 1. Load an audio file (`Ctrl+Shift+O` or drag/drop).
 2. Pick a detector and tune thresholds/timing.
-3. Optionally configure denoise/filtering, sample spread mode, or maximum sample count.
+3. Optionally configure denoise/filtering, sample spread mode, or set the maximum sample count (1–10,000).
 4. Click **Detect Samples** (`Ctrl+D`). A loading overlay tracks progress.
 5. If new detections overlap existing samples, the Overlap Resolution dialog lets you choose to discard overlaps, discard duplicates, or keep all (with “remember my choice”).
 
