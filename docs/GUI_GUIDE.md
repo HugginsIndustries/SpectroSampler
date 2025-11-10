@@ -75,7 +75,7 @@ Your choice is saved in user settings and stored with the current project, so re
 The **Detection Mode** combo offers:
 
 - `auto` – Hybrid scoring that chooses a detector automatically.
-- `voice` – WebRTC VAD (requires optional dependency).
+- `voice` – WebRTC VAD (requires optional dependency) with a configurable 200–4500 Hz Butterworth band-pass applied before scoring (tune the High-pass/Low-pass sliders under **Audio Processing**; set them to 0 Hz and half the sample rate to disable).
 - `transient` – Spectral flux-based hit detection.
 - `nonsilence` – Energy-based detection for general material.
 - `spectral` – Highlights “interesting” regions in the spectrogram.

@@ -4,6 +4,7 @@ from typing import cast
 
 import numpy as np
 import numpy.typing as npt
+from scipy import signal
 
 
 def rms_envelope(audio: np.ndarray, window_size: int, hop_size: int) -> np.ndarray:
@@ -173,20 +174,83 @@ def hanning_window(size: int) -> np.ndarray:
 
 
 def bandpass_filter(
-    audio: np.ndarray, sample_rate: int, low_freq: float, high_freq: float
+    audio: np.ndarray,
+    sample_rate: int,
+    low_freq: float,
+    high_freq: float,
+    *,
+    order: int = 4,
 ) -> np.ndarray:
-    """Apply a simple bandpass filter (placeholder for FFmpeg implementation).
+    """Apply a Butterworth bandpass, lowpass, or highpass filter.
 
-    Note: This is a placeholder. Actual filtering should be done via FFmpeg.
+    The helper accepts mono `(n_samples,)` or multi-channel `(n_samples, n_channels)`
+    audio. Depending on the provided cutoffs, the filter degenerates to a lowpass
+    (`low_freq <= 0`) or highpass (`high_freq >= sample_rate / 2`) response. When both
+    bounds cover the full spectrum, the input is returned unchanged.
 
     Args:
-        audio: Input audio signal.
-        sample_rate: Sample rate in Hz.
-        low_freq: Low cutoff frequency in Hz.
-        high_freq: High cutoff frequency in Hz.
+        audio: Input audio samples. Integer dtypes are promoted to float64 internally.
+        sample_rate: Sample rate in Hz. Must be positive.
+        low_freq: Low cutoff frequency in Hz. Values ≤ 0 disable the high-pass edge.
+        high_freq: High cutoff frequency in Hz. Values ≥ Nyquist disable the low-pass edge.
+        order: Butterworth filter order (default 4).
 
     Returns:
-        Filtered audio (placeholder returns input).
+        Filtered audio array. Floating inputs preserve their dtype; integer inputs are
+        returned as float64.
+
+    Raises:
+        ValueError: If the sample rate is non-positive, the audio dimensionality is not
+            supported, or the cutoff configuration is invalid.
     """
-    # Placeholder: actual filtering is delegated to FFmpeg during export/detection.
-    return audio
+    if sample_rate <= 0:
+        raise ValueError("sample_rate must be a positive integer")
+
+    data = np.asarray(audio)
+    if data.ndim not in (1, 2):
+        raise ValueError("audio must be a 1D array or 2D (samples, channels) array")
+    if data.size == 0:
+        return data.copy()
+    if order < 1:
+        raise ValueError("order must be >= 1")
+
+    nyquist = sample_rate / 2.0
+    if nyquist <= 0:
+        raise ValueError("sample_rate must be at least 2 Hz to define a Nyquist rate")
+
+    low = float(low_freq)
+    high = float(high_freq)
+
+    if not np.isfinite(low) or not np.isfinite(high):
+        raise ValueError("cutoff frequencies must be finite numbers")
+
+    low = max(low, 0.0)
+    high = min(high, nyquist)
+
+    if low <= 0.0 and high >= nyquist:
+        return data.copy()
+
+    wn: float | tuple[float, float]
+    if low <= 0.0 and high > 0.0 and high < nyquist:
+        wn = high / nyquist
+        btype = "lowpass"
+    elif high >= nyquist and 0.0 < low < nyquist:
+        wn = low / nyquist
+        btype = "highpass"
+    elif 0.0 < low < high < nyquist:
+        wn = (low / nyquist, high / nyquist)
+        btype = "bandpass"
+    else:
+        raise ValueError(
+            "Invalid cutoff configuration: ensure 0 <= low_freq < high_freq <= Nyquist"
+        )
+
+    working = data.astype(np.float64, copy=False)
+    axis = 0
+
+    sos = signal.butter(order, wn, btype=btype, output="sos")
+    filtered = cast(npt.NDArray[np.float64], signal.sosfiltfilt(sos, working, axis=axis))
+
+    if np.issubdtype(data.dtype, np.floating):
+        return cast(np.ndarray, filtered.astype(data.dtype, copy=False))
+    return filtered

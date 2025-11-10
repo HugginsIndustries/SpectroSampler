@@ -63,3 +63,93 @@ def test_detector_name_extraction():
 
     flux = TransientFluxDetector()
     assert "flux" in flux.name.lower() or "transient" in flux.name.lower()
+
+
+def test_voice_vad_prefilter_invokes_bandpass(monkeypatch: pytest.MonkeyPatch) -> None:
+    import spectrosampler.detectors.vad as vad_module
+
+    call_args: list[tuple[float, float]] = []
+
+    def fake_bandpass(
+        audio: np.ndarray,
+        sample_rate: int,
+        low_freq: float,
+        high_freq: float,
+        *,
+        order: int = 4,
+    ) -> np.ndarray:
+        call_args.append((low_freq, high_freq))
+        return np.ones_like(audio)
+
+    monkeypatch.setattr(vad_module, "bandpass_filter", fake_bandpass)
+
+    detector = vad_module.VoiceVADDetector(low_freq=120.0, high_freq=3200.0)
+    audio = np.random.randn(4096).astype(np.float32)
+    result = detector._prefilter_audio(audio)
+
+    assert call_args == [(120.0, 3200.0)]
+    assert result.shape == audio.shape
+    assert result.dtype == audio.dtype
+
+
+def test_voice_vad_prefilter_skips_when_full_band(monkeypatch: pytest.MonkeyPatch) -> None:
+    import spectrosampler.detectors.vad as vad_module
+
+    call_args: list[tuple[float, float]] = []
+
+    def fake_bandpass(
+        audio: np.ndarray,
+        sample_rate: int,
+        low_freq: float,
+        high_freq: float,
+        *,
+        order: int = 4,
+    ) -> np.ndarray:
+        call_args.append((low_freq, high_freq))
+        return audio
+
+    monkeypatch.setattr(vad_module, "bandpass_filter", fake_bandpass)
+
+    detector = vad_module.VoiceVADDetector(low_freq=None, high_freq=None)
+    audio = np.random.randn(4096).astype(np.float32)
+    result = detector._prefilter_audio(audio)
+
+    assert call_args == []
+    assert np.shares_memory(result, audio)
+
+
+def test_voice_vad_detect_filters_audio(monkeypatch: pytest.MonkeyPatch) -> None:
+    import spectrosampler.detectors.vad as vad_module
+
+    call_args: list[tuple[int, float, float]] = []
+
+    def fake_bandpass(
+        audio: np.ndarray,
+        sample_rate: int,
+        low_freq: float,
+        high_freq: float,
+        *,
+        order: int = 4,
+    ) -> np.ndarray:
+        call_args.append((sample_rate, low_freq, high_freq))
+        return audio
+
+    class DummyVadModule:
+        class Vad:
+            def __init__(self, aggressiveness: int) -> None:  # noqa: D401 - minimal stub
+                self.aggressiveness = aggressiveness
+
+            def is_speech(self, frame: bytes, sample_rate: int) -> bool:
+                return False
+
+    monkeypatch.setattr(vad_module, "bandpass_filter", fake_bandpass)
+    monkeypatch.setattr(vad_module, "webrtcvad", DummyVadModule)
+
+    detector = vad_module.VoiceVADDetector(
+        sample_rate=16000, aggressiveness=2, low_freq=100.0, high_freq=2500.0
+    )
+    audio = np.random.randn(detector.frame_size * 10).astype(np.float32)
+    segments = detector.detect(audio)
+
+    assert segments == []
+    assert call_args == [(16000, 100.0, 2500.0)]

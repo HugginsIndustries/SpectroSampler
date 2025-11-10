@@ -1,5 +1,7 @@
 """Voice Activity Detection using WebRTC VAD."""
 
+import logging
+
 import numpy as np
 
 try:
@@ -8,6 +10,7 @@ except ImportError:
     webrtcvad = None  # type: ignore
 
 from spectrosampler.detectors.base import BaseDetector, Segment
+from spectrosampler.dsp import bandpass_filter
 
 
 class VoiceVADDetector(BaseDetector):
@@ -58,6 +61,33 @@ class VoiceVADDetector(BaseDetector):
         self.vad = webrtcvad.Vad(aggressiveness) if self._vad_available else None  # type: ignore
         self.frame_size = int(sample_rate * frame_duration_ms / 1000)
 
+    def _prefilter_audio(self, audio: np.ndarray) -> np.ndarray:
+        """Apply optional bandpass filtering ahead of VAD analysis."""
+        data = np.asarray(audio)
+        if data.ndim != 1:
+            raise ValueError("VoiceVADDetector expects 1D mono audio.")
+        if data.size == 0:
+            return data
+
+        nyquist = self.sample_rate / 2.0
+        low = float(self.low_freq) if self.low_freq is not None else 0.0
+        high = float(self.high_freq) if self.high_freq is not None else nyquist
+
+        if low <= 0.0 and high >= nyquist:
+            return data
+
+        try:
+            return bandpass_filter(data, self.sample_rate, low, high)
+        except (ValueError, RuntimeError) as exc:
+            logging.debug(
+                "VoiceVADDetector bandpass filter failed (low=%s, high=%s): %s",
+                self.low_freq,
+                self.high_freq,
+                exc,
+                exc_info=exc,
+            )
+            return data
+
     def detect(self, audio: np.ndarray) -> list[Segment]:
         """Detect voice segments in audio.
 
@@ -70,8 +100,10 @@ class VoiceVADDetector(BaseDetector):
         if not self._vad_available:
             return []
 
+        filtered_audio = self._prefilter_audio(audio)
+
         # Convert to 16-bit PCM for VAD
-        pcm16 = np.clip(audio, -1.0, 1.0)
+        pcm16 = np.clip(filtered_audio, -1.0, 1.0)
         pcm16 = (pcm16 * 32768.0).astype(np.int16)
         frame_samples = self.frame_size
         bytes_per_frame = frame_samples * 2

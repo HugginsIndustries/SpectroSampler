@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 34 items, P2: 22 items_
+_Summary: P0: 0 items, P1: 34 items, P2: 21 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -68,10 +68,6 @@ _Summary: P0: 0 items, P1: 34 items, P2: 22 items_
   - Acceptance:
     - Audacity label, REAPER region CSV, and timestamps CSV outputs match published schemas and reflect optional padding flags.
     - Regression tests open the generated files and assert headers/rows align with expectations.
-- [ ] [P2] Implement reusable bandpass filter helper (from `spectrosampler/dsp.py:bandpass_filter`)
-  - Acceptance:
-    - Helper applies an actual filter (NumPy or FFmpeg delegation) with parameterized tests covering low/high cutoff behavior.
-    - Detectors and pipelines can call the helper instead of a no-op without noticeable performance regressions.
 - [ ] [P1] Add input validation for settings ranges
   - Validate durations, paddings, thresholds, etc.; disable invalid UI inputs or surface validation messages.
   - Acceptance: Impossible values cannot be entered or are rejected with clear guidance.
