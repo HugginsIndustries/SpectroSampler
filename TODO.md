@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 34 items, P2: 21 items_
+_Summary: P0: 0 items, P1: 33 items, P2: 21 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -60,10 +60,6 @@ _Summary: P0: 0 items, P1: 34 items, P2: 21 items_
   - Acceptance: Warning dialog includes “Try alternate resample” that re-runs analysis.
 
 ### Code Quality & Robustness
-- [ ] [P1] Harden sanitize_filename cross-platform (from `spectrosampler/utils.py:sanitize_filename`)
-  - Acceptance:
-    - Reserved characters, control codes, and decomposed Unicode normalize to safe filenames on Windows, macOS, and Linux.
-    - Unit tests cover long names, Windows reserved words, and mixed Unicode so exports never fail validation.
 - [ ] [P1] Verify marker export formats (from `spectrosampler/export.py`)
   - Acceptance:
     - Audacity label, REAPER region CSV, and timestamps CSV outputs match published schemas and reflect optional padding flags.

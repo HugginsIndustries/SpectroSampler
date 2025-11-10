@@ -133,6 +133,22 @@ def test_sanitize_filename():
     sanitized = sanitize_filename(name_with_ext, max_length=50)
     assert sanitized.endswith(".wav")
 
+    # Test control characters replaced
+    control_name = "bad\x00name.wav"
+    sanitized_control = sanitize_filename(control_name)
+    assert "\x00" not in sanitized_control
+    assert sanitized_control.startswith("bad")
+
+    # Test Windows reserved device names avoided
+    reserved_name = sanitize_filename("CON.txt")
+    assert reserved_name.endswith(".txt")
+    assert reserved_name.split(".", 1)[0].upper() != "CON"
+
+    # Test Unicode normalization combines decomposed characters
+    unicode_name = "Cafe\u0301"
+    sanitized_unicode = sanitize_filename(unicode_name)
+    assert sanitized_unicode == "Café"
+
 
 def test_cli_integration(test_audio_file: Path, test_output_dir: Path):
     """Integration test placeholder to ensure test audio generation and output structure exists."""

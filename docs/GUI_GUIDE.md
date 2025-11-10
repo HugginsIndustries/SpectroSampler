@@ -178,7 +178,7 @@ Open the **Export** menu to configure session-wide parameters:
 - **Bit Depth** – 16-bit, 24-bit, 32-bit float, or “None (original).”
 - **Channels** – Mono, stereo, or “None (original)” to keep source layout.
 
-When ready, choose **File → Export Samples** (`Ctrl+E`). Only enabled (checked) rows are included. Exported filenames can include the detector name, index, and source file id.
+When ready, choose **File → Export Samples** (`Ctrl+E`). Only enabled (checked) rows are included. Exported filenames include the detector name, index, and source file id, and they are sanitized automatically so reserved characters or Windows device names never derail the export on any platform.
 
 > Screenshot placeholder: `docs/images/export-menu.png`
 

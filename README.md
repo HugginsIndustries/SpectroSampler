@@ -116,6 +116,7 @@ spectrosampler-gui --version          Show version and exit
 - Choose format, sample rate, bit depth, and channels from the Export menu (set sample rate to `0` or pick “None (original)” for bit depth/channels to inherit source values).
 - Configure pre/post padding to add silence to each export.
 - Only enabled & checked samples in the info table are exported. Default format preserves original audio (no re-encode if parameters match).
+- Exported filenames are sanitized automatically, so reserved characters and Windows device names never block writing files on Windows, macOS, or Linux.
 
 ---
 
