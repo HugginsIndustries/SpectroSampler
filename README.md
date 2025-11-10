@@ -131,6 +131,18 @@ spectrosampler-gui --version          Show version and exit
 
 ---
 
+## Developer API Overview
+
+Prefer Python automation over the GUI? The processing engine is fully reusable:
+
+- `spectrosampler.pipeline` provides a `Pipeline` class plus `process_file()` helper that mirrors the GUI workflow.
+- `ProcessingSettings` (from `spectrosampler.pipeline_settings`) collects all detection, padding, and export knobs.
+- Detector implementations, the shared `Segment` data model, audio I/O helpers, and export/report writers are all importable without launching Qt.
+
+See `docs/DEVELOPER_API.md` for a module map, minimal script, and extension patterns.
+
+---
+
 ## Keyboard Shortcuts
 
 | Category | Action | Shortcut |

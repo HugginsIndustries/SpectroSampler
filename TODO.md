@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 33 items, P2: 21 items_
+_Summary: P0: 0 items, P1: 33 items, P2: 20 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -205,9 +205,6 @@ _Summary: P0: 0 items, P1: 33 items, P2: 21 items_
 - [ ] [P2] Improve user guide
   - Screenshots and step-by-step tutorials.
   - Acceptance: Updated `README.md` and `docs/GUI_GUIDE.md`. [Docs Impact]
-- [ ] [P2] Add API surface documentation (limited)
-  - Developer-facing docs for detector interface and extension points.
-  - Acceptance: Brief API section or Sphinx skeleton.
 
 ### Utilities
 
