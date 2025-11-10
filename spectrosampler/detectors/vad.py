@@ -1,16 +1,24 @@
 """Voice Activity Detection using WebRTC VAD."""
 
 import logging
+import warnings
 
 import numpy as np
+
+from spectrosampler.detectors.base import BaseDetector, Segment
+from spectrosampler.dsp import bandpass_filter
+
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    message="pkg_resources is deprecated as an API",
+    module="webrtcvad",
+)
 
 try:
     import webrtcvad
 except ImportError:
     webrtcvad = None  # type: ignore
-
-from spectrosampler.detectors.base import BaseDetector, Segment
-from spectrosampler.dsp import bandpass_filter
 
 
 class VoiceVADDetector(BaseDetector):

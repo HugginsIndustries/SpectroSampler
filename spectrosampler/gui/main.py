@@ -3,12 +3,21 @@
 import argparse
 import logging
 import sys
+import warnings
 from pathlib import Path
 
 from spectrosampler.audio_io import check_ffmpeg
 from spectrosampler.utils import setup_logging
 
 logger = logging.getLogger(__name__)
+
+# Suppress third-party deprecation warning emitted by webrtcvad's pkg_resources import.
+warnings.filterwarnings(
+    "ignore",
+    category=UserWarning,
+    message="pkg_resources is deprecated as an API",
+    module="webrtcvad",
+)
 
 
 def _print_help() -> None:

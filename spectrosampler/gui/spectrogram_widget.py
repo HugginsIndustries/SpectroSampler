@@ -7,7 +7,7 @@ from typing import Any, cast
 import numpy as np
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg
 from matplotlib.figure import Figure
-from matplotlib.ticker import MaxNLocator
+from matplotlib.ticker import NullLocator
 from PySide6.QtCore import QEvent, QPoint, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QResizeEvent
 from PySide6.QtWidgets import QMenu, QVBoxLayout, QWidget
@@ -183,6 +183,10 @@ class SpectrogramWidget(QWidget):
             labelbottom=False,
             labelleft=False,
         )
+        self._ax.xaxis.set_major_locator(NullLocator())
+        self._ax.xaxis.set_minor_locator(NullLocator())
+        self._ax.yaxis.set_major_locator(NullLocator())
+        self._ax.yaxis.set_minor_locator(NullLocator())
         for spine in self._ax.spines.values():
             spine.set_visible(False)
         self._adjust_figure_geometry()
@@ -337,14 +341,6 @@ class SpectrogramWidget(QWidget):
             and abs(self._current_tile.start_time - self._start_time) < 0.1
             and abs(self._current_tile.end_time - self._end_time) < 0.1
         )
-        # Clamp tick counts adaptively based on view duration
-        try:
-            view_dur = max(1e-6, self._end_time - self._start_time)
-            # Fewer ticks for very long windows to avoid MAXTICKS warnings
-            nbins = 10 if view_dur > 600 else 12
-            self._ax.xaxis.set_major_locator(MaxNLocator(nbins=nbins))
-        except (RuntimeError, ValueError) as exc:
-            logger.debug("Failed to update tick locators: %s", exc, exc_info=exc)
         if current_tile_matches and self._current_tile.spectrogram.size > 0:
             try:
                 self._apply_tile_to_image(self._current_tile)
@@ -574,7 +570,7 @@ class SpectrogramWidget(QWidget):
                 seg_start,
                 seg_end,
                 alpha=draw_alpha,
-                color=color,
+                facecolor=color,
                 edgecolor=edge_color,
                 linewidth=2,
                 zorder=2,

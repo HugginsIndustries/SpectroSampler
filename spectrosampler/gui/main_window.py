@@ -5,6 +5,7 @@ import logging
 import subprocess
 import tempfile
 import uuid
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -89,6 +90,7 @@ class MainWindow(QMainWindow):
         self._is_paused = False
         self._paused_position = 0  # milliseconds
         self._playback_stopped = False  # Flag to prevent restart after explicit stop
+        self._media_status_handler: Callable[[QMediaPlayer.MediaStatus], None] | None = None
 
         # Undo/redo stacks
         self._undo_stack: list[list[Segment]] = []
@@ -2097,6 +2099,17 @@ class MainWindow(QMainWindow):
             self._sample_player.set_sample(seg, index, len(self._pipeline_wrapper.current_segments))
             self._play_segment(seg.start, seg.end)
 
+    def _disconnect_media_status_handler(self) -> None:
+        """Disconnect any cached mediaStatusChanged handler without spamming warnings."""
+        if self._media_status_handler is None:
+            return
+        try:
+            self._media_player.mediaStatusChanged.disconnect(self._media_status_handler)
+        except (TypeError, RuntimeError) as exc:
+            logger.debug("mediaStatusChanged disconnect failed: %s", exc, exc_info=exc)
+        finally:
+            self._media_status_handler = None
+
     def _play_segment(self, start_time: float, end_time: float) -> None:
         """Play audio segment.
 
@@ -2113,10 +2126,7 @@ class MainWindow(QMainWindow):
             self._media_player.setSource(QUrl())
 
             # Disconnect previous handlers to avoid multiple connections
-            try:
-                self._media_player.mediaStatusChanged.disconnect()
-            except (TypeError, RuntimeError) as exc:
-                logger.debug("mediaStatusChanged disconnect failed: %s", exc, exc_info=exc)
+            self._disconnect_media_status_handler()
 
             # Clean up previous temp file
             if self._temp_playback_file and self._temp_playback_file.exists():
@@ -2141,13 +2151,24 @@ class MainWindow(QMainWindow):
             # Use FFmpeg to extract segment
             cmd = [
                 "ffmpeg",
+                "-hide_banner",
+                "-loglevel",
+                "error",
+                "-fflags",
+                "+genpts",
+                "-avoid_negative_ts",
+                "make_zero",
                 "-y",
-                "-ss",
-                f"{start_time:.6f}",
                 "-i",
                 str(self._current_audio_path),
+                "-ss",
+                f"{start_time:.6f}",
                 "-t",
                 f"{duration:.6f}",
+                # Ensure presentation timestamps are generated so Qt's FFmpeg backend
+                # does not complain about AV_NOPTS_VALUE packets when demuxing.
+                "-af",
+                "asetpts=PTS-STARTPTS",
                 "-acodec",
                 "pcm_s16le",
                 "-ar",
@@ -2189,14 +2210,9 @@ class MainWindow(QMainWindow):
 
                     # Check if looping is enabled
                     if self._loop_enabled and self._current_playing_index is not None:
-                        # Restart playback of the same segment
-                        if (
-                            self._current_playing_start is not None
-                            and self._current_playing_end is not None
-                        ):
-                            self._play_segment(
-                                self._current_playing_start, self._current_playing_end
-                            )
+                        # Restart playback of the same segment without regenerating audio.
+                        self._media_player.setPosition(0)
+                        self._media_player.play()
                         return
 
                     # Not looping, clean up
@@ -2236,6 +2252,7 @@ class MainWindow(QMainWindow):
 
             # Connect handlers
             self._media_player.mediaStatusChanged.connect(on_media_status_changed)
+            self._media_status_handler = on_media_status_changed
 
             # Load the extracted segment
             url = QUrl.fromLocalFile(str(self._temp_playback_file))
@@ -2309,10 +2326,7 @@ class MainWindow(QMainWindow):
     def _on_player_stop_requested(self) -> None:
         """Handle player stop request."""
         # Disconnect mediaStatusChanged signal to prevent restart callbacks
-        try:
-            self._media_player.mediaStatusChanged.disconnect()
-        except (TypeError, RuntimeError) as exc:
-            logger.debug("mediaStatusChanged disconnect during stop failed: %s", exc, exc_info=exc)
+        self._disconnect_media_status_handler()
 
         # Set stop flag to prevent restart
         self._playback_stopped = True
