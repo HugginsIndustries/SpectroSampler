@@ -115,8 +115,9 @@ spectrosampler-gui --version          Show version and exit
 ### Exporting
 - Choose format, sample rate, bit depth, and channels from the Export menu (set sample rate to `0` or pick “None (original)” for bit depth/channels to inherit source values).
 - Configure pre/post padding to add silence to each export.
+- When you choose **Export Samples**, the dialog now asks for an optional Name that is inserted after the sample index; the live preview shows the slug that will be used (spaces and punctuation collapse to lowercase hyphen-delimited text).
 - Only enabled & checked samples in the info table are exported. Default format preserves original audio (no re-encode if parameters match).
-- Exported filenames are sanitized automatically, so reserved characters and Windows device names never block writing files on Windows, macOS, or Linux.
+- Exported filenames are sanitized automatically, so reserved characters and Windows device names never block writing files on Windows, macOS, or Linux. The optional Name is slugged the same way.
 
 ---
 
@@ -127,7 +128,7 @@ spectrosampler-gui --version          Show version and exit
 3. Audition results with the sample player; loop tricky regions when needed.
 4. Fine-tune boundaries directly on the spectrogram or by editing numbers in the info table.
 5. Save a project file to capture the session (`Ctrl+S`).
-6. Choose export parameters and run **Export Samples** (`Ctrl+E`).
+6. Choose export parameters, set an optional export Name if desired, and run **Export Samples** (`Ctrl+E`).
 
 ---
 
@@ -172,7 +173,7 @@ Project saves capture:
 - Audio file reference (re-locate if moved)
 - Detection settings, timing guards, filter values
 - Sample metadata (start/end/duration, detector name, enabled flag)
-- Export configuration (format, rate, padding, channels, bit depth)
+- Export configuration (format, rate, padding, channels, bit depth, optional Name token)
 - Grid settings and UI layout (splitter sizes, panels hidden/shown)
 - Recent playback state (current view, zoom)
 - Preferred theme mode is stored per user (System/Dark/Light)

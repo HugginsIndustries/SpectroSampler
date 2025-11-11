@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 31 items, P2: 20 items_
+_Summary: P0: 0 items, P1: 30 items, P2: 20 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -77,9 +77,6 @@ _Summary: P0: 0 items, P1: 31 items, P2: 20 items_
 ## **Features**
 
 ### Sample Export & Naming
-- [ ] [P1] Add optional sample name field for export filenames
-  - Add a Name field; append to current filename template when set.
-  - Acceptance: `field_sample_0000_bird_14.2s-14.4s_detector-manual.wav` when Name="bird"; otherwise current format.
 - [ ] [P2] Add bulk rename/edit for samples
   - Multi-select + batch operations, including find/replace in names.
   - Acceptance: Apply a pattern or find/replace to selected rows.

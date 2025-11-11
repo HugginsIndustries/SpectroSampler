@@ -570,7 +570,16 @@ def process_file(
 
     # Samples
     for idx, seg in enumerate(final_segments):
-        name = build_sample_filename(base_name, seg, idx, len(final_segments)) + ".wav"
+        name = (
+            build_sample_filename(
+                base_name,
+                seg,
+                idx,
+                len(final_segments),
+                sample_name=settings.sample_name,
+            )
+            + ".wav"
+        )
         export_sample(
             input_path=input_path,
             output_path=samples_dir / name,

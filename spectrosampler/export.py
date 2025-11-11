@@ -1,11 +1,27 @@
 """Sample export: naming, cutting, format conversion, normalization."""
 
 import logging
+import re
 from pathlib import Path
 
 from spectrosampler.audio_io import extract_sample, get_audio_info
 from spectrosampler.detectors.base import Segment
 from spectrosampler.utils import ensure_dir, sanitize_filename
+
+
+def normalize_sample_name(sample_name: str | None) -> str:
+    """Return sanitized token for optional sample name component."""
+    if sample_name is None:
+        return ""
+    candidate = sample_name.strip()
+    if not candidate:
+        return ""
+    sanitized = sanitize_filename(candidate, max_length=64)
+    sanitized = sanitized.replace("_", "-").replace(" ", "-").replace(".", "-")
+    sanitized = re.sub(r"[^A-Za-z0-9-]+", "-", sanitized)
+    sanitized = re.sub(r"-+", "-", sanitized)
+    sanitized = sanitized.strip("-")
+    return sanitized.lower()
 
 
 def build_sample_filename(
@@ -14,6 +30,7 @@ def build_sample_filename(
     index: int,
     total: int,
     zero_pad: int = 4,
+    sample_name: str | None = None,
 ) -> str:
     """Build deterministic sample filename.
 
@@ -23,6 +40,7 @@ def build_sample_filename(
         index: Sample index (0-based).
         total: Total number of samples.
         zero_pad: Number of digits for zero-padding index.
+        sample_name: Optional user-specified name token inserted after the sample index.
 
     Returns:
         Filename (without extension) for the sample.
@@ -32,8 +50,10 @@ def build_sample_filename(
     start_rounded = round(segment.start, 1) if segment.start >= 1.0 else round(segment.start, 2)
     end_rounded = round(segment.end, 1) if segment.end >= 1.0 else round(segment.end, 2)
     index_str = str(index).zfill(zero_pad)
+    sample_token = normalize_sample_name(sample_name)
+    attrs = getattr(segment, "attrs", {}) or {}
     # Prefer primary detector if present, otherwise collapse labels
-    primary = segment.attrs.get("primary_detector")
+    primary = attrs.get("primary_detector")
     if primary:
         label = str(primary)
     else:
@@ -47,7 +67,15 @@ def build_sample_filename(
             label = "+".join(uniq)
         else:
             label = "multi"
-    name = f"{base_name}_sample_{index_str}_{start_rounded}s-{end_rounded}s_detector-{label}"
+    filename_parts = [
+        base_name,
+        f"sample_{index_str}",
+    ]
+    if sample_token:
+        filename_parts.append(sample_token)
+    filename_parts.append(f"{start_rounded}s-{end_rounded}s")
+    filename_parts.append(f"detector-{label}")
+    name = "_".join(filename_parts)
     return sanitize_filename(name)
 
 

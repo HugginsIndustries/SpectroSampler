@@ -177,8 +177,9 @@ Open the **Export** menu to configure session-wide parameters:
 - **Sample Rate** – Enter 0 to keep the original.
 - **Bit Depth** – 16-bit, 24-bit, 32-bit float, or “None (original).”
 - **Channels** – Mono, stereo, or “None (original)” to keep source layout.
+- **Export Name** – When you run the export command you can enter an optional Name that slots between the sample index and timestamps. The dialog shows how the Name will be slugged (spaces/punctuation collapse to lowercase hyphenated text).
 
-When ready, choose **File → Export Samples** (`Ctrl+E`). Only enabled (checked) columns are included. Exported filenames include the detector name, index, and source file id, and they are sanitized automatically so reserved characters or Windows device names never derail the export on any platform.
+When ready, choose **File → Export Samples** (`Ctrl+E`). Only enabled (checked) columns are included. Exported filenames include the detector name, index, optional Name token, and source file id, and they are sanitized automatically so reserved characters or Windows device names never derail the export on any platform.
 
 > Screenshot placeholder: `docs/images/export-menu.png`
 
@@ -191,7 +192,7 @@ When ready, choose **File → Export Samples** (`Ctrl+E`). Only enabled (checked
 - **Unsaved Changes Prompt** – Closing the window or quitting the app with modifications opens a Save/Discard/Cancel dialog.
 - **Recent Lists** – Clear stale entries from Settings → Clear Recent Projects/Audio.
 
-Project files are plain JSON and include audio paths, detection/export settings, grid config, and window layout. If the referenced audio is missing, SpectroSampler prompts to relink it when opening the project.
+Project files are plain JSON and include audio paths, detection/export settings (including the optional Name token), grid config, and window layout. If the referenced audio is missing, SpectroSampler prompts to relink it when opening the project.
 
 ---
 

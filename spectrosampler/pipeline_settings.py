@@ -44,6 +44,10 @@ class ProcessingSettings:
         self.sample_rate: int | None = kwargs.get("sample_rate", None)
         self.bit_depth: str | None = kwargs.get("bit_depth", None)
         self.channels: str | None = kwargs.get("channels", None)
+        sample_name_value = kwargs.get("sample_name")
+        if isinstance(sample_name_value, str):
+            sample_name_value = sample_name_value.strip()
+        self.sample_name: str | None = sample_name_value if sample_name_value else None
 
         # Denoise/preprocessing
         self.denoise: str = kwargs.get("denoise", "afftdn")

@@ -14,7 +14,7 @@ shows how to stitch them together in automation scripts or notebooks.
 | `spectrosampler.pipeline_settings` | Container for tunable knobs used by the pipeline and GUI. | `ProcessingSettings` collects detection, padding, and export options. |
 | `spectrosampler.detectors` | Detector implementations and shared data model. | `BaseDetector`, concrete detectors, and the `Segment` struct. |
 | `spectrosampler.audio_io` | FFmpeg-backed helpers for metadata, resampling, denoise, and cutting. | `check_ffmpeg()`, `denoise_audio()`, `extract_sample()`, spectrogram utilities. |
-| `spectrosampler.export` | File naming and export flows. | `build_sample_filename()`, `export_sample()`, marker/CSV writers. |
+| `spectrosampler.export` | File naming and export flows. | `build_sample_filename()`, `normalize_sample_name()`, `export_sample()`, marker/CSV writers. |
 | `spectrosampler.report` | HTML and annotated spectrogram report helpers. | `create_html_report()` and `create_annotated_spectrogram()`. |
 
 Every module is importable without launching the GUI. The public surface is regular
@@ -52,6 +52,7 @@ pipeline.process(
 The script mirrors the GUI defaults:
 
 - `ProcessingSettings` accepts keyword args for every dial exposed in the app.
+- Set `sample_name="bird"` (or leave it unset) to inject a reusable token after the sample index; `normalize_sample_name()` handles slugging so filenames remain portable.
 - `Pipeline.process()` takes either a single file or a directory tree; it will
   denoise, resample, run the configured detectors, deduplicate/merge, write samples,
   and emit reports into the supplied output directory.

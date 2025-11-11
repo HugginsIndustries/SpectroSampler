@@ -14,8 +14,12 @@ from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
+    QDialogButtonBox,
     QFileDialog,
+    QFormLayout,
     QLabel,
+    QLineEdit,
     QMainWindow,
     QMessageBox,
     QProgressBar,
@@ -29,6 +33,7 @@ from PySide6.QtWidgets import (
 
 from spectrosampler.audio_io import FFmpegError
 from spectrosampler.detectors.base import Segment
+from spectrosampler.export import normalize_sample_name
 from spectrosampler.gui.autosave import AutoSaveManager
 from spectrosampler.gui.detection_manager import DetectionManager
 from spectrosampler.gui.detection_settings import DetectionSettingsPanel
@@ -57,6 +62,65 @@ from spectrosampler.gui.spectrogram_widget import SpectrogramWidget
 from spectrosampler.gui.theme import ThemeManager
 
 logger = logging.getLogger(__name__)
+
+
+class ExportOptionsDialog(QDialog):
+    """Dialog for configuring export options such as optional sample name."""
+
+    def __init__(self, parent: QWidget | None = None, initial_name: str | None = None) -> None:
+        super().__init__(parent)
+        self.setWindowTitle("Export Samples")
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+
+        description = QLabel(
+            "Add an optional Name to insert after the sample index. Leave blank to keep the default."
+        )
+        description.setWordWrap(True)
+        layout.addWidget(description)
+
+        form_layout = QFormLayout()
+        self._name_edit = QLineEdit(self)
+        self._name_edit.setPlaceholderText("e.g., bird call")
+        if initial_name:
+            self._name_edit.setText(initial_name)
+        form_layout.addRow("Name", self._name_edit)
+
+        self._preview_label = QLabel(self)
+        self._preview_label.setObjectName("exportNamePreview")
+        self._preview_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self._preview_label.setWordWrap(True)
+        form_layout.addRow("Filename preview", self._preview_label)
+
+        layout.addLayout(form_layout)
+
+        buttons = QDialogButtonBox(QDialogButtonBox.Ok | QDialogButtonBox.Cancel, self)
+        buttons.accepted.connect(self.accept)
+        buttons.rejected.connect(self.reject)
+        layout.addWidget(buttons)
+
+        self._name_edit.textChanged.connect(self._update_preview)
+        self._update_preview()
+        self._name_edit.selectAll()
+
+    @property
+    def sample_name(self) -> str:
+        """Return trimmed sample name text."""
+        return self._name_edit.text().strip()
+
+    def normalized_token(self) -> str:
+        """Return normalized filename-safe token for the current name."""
+        return normalize_sample_name(self.sample_name or None)
+
+    def _update_preview(self) -> None:
+        """Update filename preview label based on current name."""
+        token = normalize_sample_name(self._name_edit.text())
+        if token:
+            preview = f"example_sample_0000_{token}_12.3s-12.5s_detector-manual.wav"
+        else:
+            preview = "example_sample_0000_12.3s-12.5s_detector-manual.wav"
+        self._preview_label.setText(preview)
 
 
 class MainWindow(QMainWindow):
@@ -191,6 +255,7 @@ class MainWindow(QMainWindow):
         self._export_sample_rate: int | None = None
         self._export_bit_depth: str | None = None
         self._export_channels: str | None = None
+        self._export_sample_name: str = ""
 
         # UI refresh rate settings
         self._ui_refresh_rate_enabled = True
@@ -928,6 +993,7 @@ class MainWindow(QMainWindow):
             settings.sample_rate = self._export_sample_rate
             settings.bit_depth = self._export_bit_depth
             settings.channels = self._export_channels
+            settings.sample_name = self._export_sample_name or None
             self._pipeline_wrapper = PipelineWrapper(settings)
             self._detection_manager.set_pipeline_wrapper(self._pipeline_wrapper)
 
@@ -1030,6 +1096,7 @@ class MainWindow(QMainWindow):
             "export_sample_rate": self._export_sample_rate,
             "export_bit_depth": self._export_bit_depth,
             "export_channels": self._export_channels,
+            "export_sample_name": self._export_sample_name,
         }
 
         # Collect grid settings
@@ -1164,6 +1231,13 @@ class MainWindow(QMainWindow):
                 if data.export_settings.get("export_channels") is not None
                 else None
             )
+            raw_sample_name = data.export_settings.get("export_sample_name", "")
+            if isinstance(raw_sample_name, str):
+                self._export_sample_name = raw_sample_name.strip()
+            else:
+                self._export_sample_name = ""
+            if self._pipeline_wrapper:
+                self._pipeline_wrapper.settings.sample_name = self._export_sample_name or None
             # Update export format menu actions
             if self._export_format == "wav":
                 if hasattr(self, "_export_format_wav_action"):
@@ -2687,6 +2761,11 @@ class MainWindow(QMainWindow):
         output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
 
         if output_dir:
+            options_dialog = ExportOptionsDialog(self, initial_name=self._export_sample_name)
+            if options_dialog.exec() != QDialog.Accepted:
+                return
+            self._set_export_sample_name(options_dialog.sample_name)
+
             # Get selected indices (row 0 checkboxes represented by segment enabled flag)
             selected_indices = []
             for i, seg in enumerate(self._pipeline_wrapper.current_segments):
@@ -3143,6 +3222,18 @@ class MainWindow(QMainWindow):
             # Mark as modified (export settings changed)
             self._project_modified = True
             self._update_window_title()
+
+    def _set_export_sample_name(self, text: str) -> None:
+        """Update the stored export sample name and propagate to pipeline settings."""
+        trimmed = text.strip()
+        pipeline_value = trimmed or None
+        if self._pipeline_wrapper:
+            self._pipeline_wrapper.settings.sample_name = pipeline_value
+        if trimmed == self._export_sample_name:
+            return
+        self._export_sample_name = trimmed
+        self._project_modified = True
+        self._update_window_title()
 
     # UI refresh rate handlers
     def _on_ui_refresh_rate_enabled_changed(self, enabled: bool) -> None:

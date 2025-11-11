@@ -113,6 +113,7 @@ def _processing_settings_to_dict(settings: ProcessingSettings) -> dict[str, Any]
         "sample_rate",
         "bit_depth",
         "channels",
+        "sample_name",
         "denoise",
         "hp",
         "lp",

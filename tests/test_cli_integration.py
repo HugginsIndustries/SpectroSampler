@@ -8,7 +8,7 @@ import numpy as np
 import pytest
 import soundfile as sf
 
-from spectrosampler.export import build_sample_filename
+from spectrosampler.export import build_sample_filename, normalize_sample_name
 from spectrosampler.utils import sanitize_filename
 
 
@@ -111,6 +111,23 @@ def test_filename_primary_detector():
     )
     name = build_sample_filename("x", seg, 0, 1)
     assert "detector-transient_flux" in name
+
+
+def test_build_sample_filename_with_name_token():
+    from spectrosampler.detectors.base import Segment
+
+    seg = Segment(start=14.2, end=14.4, detector="manual", score=0.5)
+    name = build_sample_filename("field", seg, 0, 1, sample_name="Bird Song")
+    assert "field_sample_0000_bird-song_14.2s-14.4s_detector-manual" in name
+    assert name.endswith(".wav") is False
+
+
+def test_normalize_sample_name_tokens():
+    assert normalize_sample_name(None) == ""
+    assert normalize_sample_name("") == ""
+    assert normalize_sample_name("  Bird  ") == "bird"
+    assert normalize_sample_name("Bird Song") == "bird-song"
+    assert normalize_sample_name("!@#") == ""
 
 
 def test_sanitize_filename():

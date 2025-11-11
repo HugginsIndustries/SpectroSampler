@@ -214,7 +214,14 @@ class PipelineWrapper:
             segment = self.current_segments[idx]
             base_name = self.current_audio_path.stem
             filename = (
-                build_sample_filename(base_name, segment, idx, len(self.current_segments)) + ".wav"
+                build_sample_filename(
+                    base_name,
+                    segment,
+                    idx,
+                    len(self.current_segments),
+                    sample_name=self.settings.sample_name,
+                )
+                + ".wav"
             )
             output_path = output_dir / filename
 
