@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 32 items, P2: 20 items_
+_Summary: P0: 0 items, P1: 31 items, P2: 20 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -60,10 +60,6 @@ _Summary: P0: 0 items, P1: 32 items, P2: 20 items_
   - Acceptance: Warning dialog includes “Try alternate resample” that re-runs analysis.
 
 ### Code Quality & Robustness
-- [ ] [P1] Verify marker export formats (from `spectrosampler/export.py`)
-  - Acceptance:
-    - Audacity label, REAPER region CSV, and timestamps CSV outputs match published schemas and reflect optional padding flags.
-    - Regression tests open the generated files and assert headers/rows align with expectations.
 - [ ] [P1] Add input validation for settings ranges
   - Validate durations, paddings, thresholds, etc.; disable invalid UI inputs or surface validation messages.
   - Acceptance: Impossible values cannot be entered or are rejected with clear guidance.
