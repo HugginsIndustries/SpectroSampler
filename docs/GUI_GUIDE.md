@@ -243,7 +243,15 @@ Run `spectrosampler-gui --verbose` to capture additional diagnostics in the cons
 
 ---
 
-## Appendix B – Reference
+## Appendix B – Developer API Overview
+
+- The processing engine is importable without the GUI. Start with `spectrosampler.pipeline.Pipeline` and a `ProcessingSettings` instance to replicate the end-to-end workflow.
+- Detector classes, the shared `Segment` data model, and helpers in `spectrosampler.audio_io`, `spectrosampler.export`, and `spectrosampler.report` can be reused in notebooks, batch scripts, or custom tooling.
+- See `docs/DEVELOPER_API.md` for a complete module map, minimal script, and guidance on extending detectors.
+
+---
+
+## Appendix C – Reference
 
 - **README** – High-level feature overview and installation instructions.
 - **`spectrosampler/gui/main_window.py`** – Source for menus, shortcuts, and interaction logic.
