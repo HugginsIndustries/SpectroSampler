@@ -1136,6 +1136,8 @@ class MainWindow(QMainWindow):
                     if isinstance(settings.threshold, (int, float))
                     else 50.0
                 )
+                # Sync the max-sample control so saved projects reopen with the same cap.
+                self._settings_panel.apply_max_samples(getattr(settings, "max_samples", 256))
                 # Update other settings controls...
                 # For now, we'll just update the mode and threshold as examples
                 # A more complete implementation would update all controls

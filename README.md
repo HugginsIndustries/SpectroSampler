@@ -99,7 +99,7 @@ spectrosampler-gui --version          Show version and exit
 ### Running Detection
 1. Load an audio file (`Ctrl+Shift+O` or drag/drop).
 2. Pick a detector and tune thresholds/timing.
-3. Optionally configure denoise/filtering, sample spread mode, or maximum sample count.
+3. Optionally configure denoise/filtering, sample spread mode, or maximum sample count (1–10,000, default 256).
 4. Click **Detect Samples** (`Ctrl+D`). A loading overlay tracks progress.
 5. If new detections overlap existing samples, the Overlap Resolution dialog lets you choose to discard overlaps, discard duplicates, or keep all (with “remember my choice”).
 

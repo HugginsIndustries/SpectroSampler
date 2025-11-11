@@ -87,7 +87,7 @@ Adjust the **Threshold** slider to refine sensitivity. Lower values detect more 
 - **Detection pre/post padding** – Add context around detected regions before they appear in the table.
 - **Merge gap / min gap** – Automatically merge detections or insist on spacing between them.
 - **Min/Max duration** – Clamp sample length.
-- **Max samples** – Cap the total number of detections.
+- **Max samples** – Cap the total number of detections (1–10,000) so exported filenames stay aligned with the 4-digit sample index.
 - **Sample spread** – Keep detections evenly spaced (strict or closest).
 - **Overlap Resolution** – Decide how to handle duplicates/overlaps when re-running detection; pick defaults and optionally remember them.
 

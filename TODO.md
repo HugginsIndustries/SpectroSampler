@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 33 items, P2: 20 items_
+_Summary: P0: 0 items, P1: 32 items, P2: 20 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -139,9 +139,6 @@ _Summary: P0: 0 items, P1: 33 items, P2: 20 items_
 - No items currently planned
 
 ### Settings & Configuration
-- [ ] [P1] Increase max samples range to 1–10,000
-  - Align with 4-digit zero-padding (`0000`–`9999`).
-  - Acceptance: Slider/spin supports full range; value persists via QSettings and project files. [Docs Impact]
 - [ ] [P1] Add presets for detection/export (GUI integration)
   - Load/Save presets as YAML in `spectrosampler/presets`; quick selector in UI.
   - Acceptance: Preset dropdown and “Save as preset…” dialog. [Docs Impact]

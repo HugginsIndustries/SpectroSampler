@@ -154,6 +154,22 @@ class SettingsManager:
         self._settings.remove("recentAudioFilesTimestamps")
         self._settings.sync()
 
+    def get_detection_max_samples(self, default: int = 256) -> int:
+        """Return the stored max-sample cap for detection, clamped to the UI bounds."""
+        value = self._settings.value("detection/maxSamples", default)
+        try:
+            max_samples = int(value)
+        except (TypeError, ValueError):
+            max_samples = int(default)
+        # Clamp so corrupted settings never break the slider.
+        return max(1, min(10_000, max_samples))
+
+    def set_detection_max_samples(self, max_samples: int) -> None:
+        """Persist the detection max-sample cap so the slider restores on restart."""
+        clamped = max(1, min(10_000, int(max_samples)))
+        self._settings.setValue("detection/maxSamples", clamped)
+        self._settings.sync()
+
     # Overlap dialog settings
     def get_show_overlap_dialog(self) -> bool:
         """Return True to show overlap dialog on conflicts (default True)."""

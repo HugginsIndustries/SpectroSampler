@@ -40,6 +40,13 @@ class DetectionSettingsPanel(QWidget):
         # Create settings
         self._settings = ProcessingSettings()
         self._settings_manager = SettingsManager()
+        try:
+            # Restore the persisted max-sample cap so the UI starts with the last chosen value.
+            self._settings.max_samples = self._settings_manager.get_detection_max_samples(
+                int(self._settings.max_samples)
+            )
+        except (TypeError, ValueError) as exc:
+            logger.debug("Falling back to default max samples: %s", exc, exc_info=exc)
 
         # Create layout
         layout = QVBoxLayout()
@@ -264,9 +271,11 @@ class DetectionSettingsPanel(QWidget):
 
         # Max samples
         self._max_samples_slider = self._create_slider_spin(
-            1, 1024, int(self._settings.max_samples), ""
+            1, 10_000, int(self._settings.max_samples), ""
         )
         self._max_samples_slider["slider"].valueChanged.connect(self._on_max_samples_changed)
+        # Ensure the controls reflect the clamped, restored value without emitting changes.
+        self._set_max_samples_ui_value(self._settings.max_samples, persist=False)
         layout.addRow("Max samples:", self._max_samples_slider["widget"])
 
         # Sample spread
@@ -419,6 +428,10 @@ class DetectionSettingsPanel(QWidget):
     def _on_max_samples_changed(self, value: int) -> None:
         """Handle max samples change."""
         self._settings.max_samples = int(value)
+        try:
+            self._settings_manager.set_detection_max_samples(value)
+        except (TypeError, ValueError, RuntimeError) as exc:
+            logger.debug("Unable to persist max samples %s: %s", value, exc, exc_info=exc)
         self._on_settings_changed()
 
     def _on_sample_spread_changed(self, state: int) -> None:
@@ -463,3 +476,26 @@ class DetectionSettingsPanel(QWidget):
             ProcessingSettings object.
         """
         return self._settings
+
+    def apply_max_samples(self, value: int, persist: bool = True) -> None:
+        """Update the max-sample control and optionally persist the provided value."""
+        self._set_max_samples_ui_value(value, persist=persist)
+
+    def _set_max_samples_ui_value(self, value: int, persist: bool) -> None:
+        """Clamp, persist, and display the max-sample value without triggering signals."""
+        clamped = max(1, min(10_000, int(value)))
+        slider = self._max_samples_slider["slider"]
+        spinbox = self._max_samples_slider["spinbox"]
+        # Block signals so we do not re-enter the change handler while syncing UI components.
+        slider.blockSignals(True)
+        spinbox.blockSignals(True)
+        slider.setValue(clamped)
+        spinbox.setValue(clamped)
+        slider.blockSignals(False)
+        spinbox.blockSignals(False)
+        self._settings.max_samples = clamped
+        if persist:
+            try:
+                self._settings_manager.set_detection_max_samples(clamped)
+            except (TypeError, ValueError, RuntimeError) as exc:
+                logger.debug("Unable to persist max samples %s: %s", clamped, exc, exc_info=exc)
