@@ -29,7 +29,7 @@ Autosave is enabled by default. If SpectroSampler detects an autosave newer than
 | --- | --- |
 | **Detection Settings (left panel)** | Detector choice, thresholds, timing limits, CPU worker count, denoise/filters, overlap defaults, detection trigger button. |
 | **Sample Player (top center)** | Metadata readout, play/pause/stop, next/previous navigation, loop toggle, scrub slider, and a playback line mirrored on the spectrogram. |
-| **Spectrogram Canvas (center)** | Zoom/pan view, draw or adjust sample regions, right-click for context actions (play, disable, edit name, center/fill, delete), drag handles to resize. |
+| **Spectrogram Canvas (center)** | Zoom/pan view, draw or adjust sample regions, right-click for context actions (play, toggle enable/disable, rename/delete selections, center/fill, disable others), drag handles to resize. |
 | **Navigator Overview (below spectrogram)** | Miniature spectrogram with a draggable viewport rectangle for quick jumps. |
 | **Sample Table (bottom)** | Per-sample enable checkbox, optional Name text field (feeds export filenames), start/end/duration editing, detector info, quick actions (Center, Fill, Play, Delete). |
 
@@ -42,7 +42,7 @@ All splitters are draggable. Collapse the player or info table from the View men
 ### 2.2 Menus & Key Commands
 
 - **File** – Project lifecycle (new/open/save), audio import, recent files.
-- **Edit** – Undo/redo, re-run detection, auto sample ordering, bulk delete/disable, Duration Edits (expand/contract, stretch from start/end).
+- **Edit** – Undo/redo, re-run detection, auto sample ordering, bulk delete/disable, project-wide **Enable All Samples** / **Disable All Samples**, Duration Edits (expand/contract, stretch from start/end).
 - **View** – Zoom controls (including Zoom to Selection with `Ctrl+Shift+F`), toggle info table/player visibility, show disabled samples, refresh-rate limiter, grid settings, and theme selection (System/Dark/Light).
 - **Export** – Pre/post padding, format (WAV/FLAC), sample rate, bit depth, channels.
 - **Settings** – Autosave toggle/interval, clear recent projects/audio.
@@ -137,9 +137,7 @@ Selecting a sample from the table highlights it in the spectrogram and vice vers
 - **Detector** – Source detector label.
 - **Actions** – Center, Fill (zoom the sample to the viewport width), Play, Delete.
 
-Right-click a segment in the spectrogram to open the context menu; **Edit Name** lets you rename the sample, and the chosen label appears below the segment number on the spectrogram as well as in export filenames.
-
-Use the context menu or toolbar buttons on the spectrogram to disable the current sample or disable everything except the current one.
+Right-click any segment (or multi-selection) in the spectrogram to open the context menu. Use it to play, toggle enable/disable, disable unselected samples, rename all selected segments at once, center/fill the view, or delete the selection. Chosen names appear below each segment number and flow into export filenames.
 
 > Screenshot placeholder: `docs/images/sample-table.png`
 

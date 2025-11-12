@@ -39,6 +39,10 @@ class SpectrogramWidget(QWidget):
     sample_name_edit_requested = Signal(int)  # (index)
     sample_center_requested = Signal(int)  # (index)
     sample_center_fill_requested = Signal(int)  # (index)
+    samples_enable_state_requested = Signal(list, str)  # (indexes, mode: enable/disable/toggle)
+    samples_disable_others_requested = Signal(list)  # (indexes)
+    samples_name_edit_requested = Signal(list)  # (indexes)
+    samples_delete_requested = Signal(list)  # (indexes)
     # Emitted whenever the visible time range changes (start_time, end_time)
     view_changed = Signal(float, float)
     selection_changed = Signal(list)
@@ -1608,22 +1612,72 @@ class SpectrogramWidget(QWidget):
         """
         menu = QMenu(self)
 
+        if seg_index not in self._selected_indexes:
+            self._apply_selection({seg_index}, seg_index, seg_index)
+
+        selected_indexes = sorted(self._selected_indexes) if self._selected_indexes else [seg_index]
+        selection_count = len(selected_indexes)
+
         play_action = menu.addAction("Play Sample")
         play_action.triggered.connect(lambda: self.sample_play_requested.emit(seg_index))
 
         menu.addSeparator()
 
-        # Disable options
-        disable_action = menu.addAction("Disable")
-        disable_action.triggered.connect(
-            lambda: self.sample_disable_requested.emit(seg_index, True)
+        # Toggle enable/disable options
+        enabled_states: list[bool] = []
+        for idx in selected_indexes:
+            seg = self._segments[idx]
+            enabled_states.append(
+                seg.attrs.get("enabled", True)
+                if hasattr(seg, "attrs") and seg.attrs is not None
+                else True
+            )
+
+        unique_states = set(enabled_states)
+        if len(unique_states) == 1:
+            state = unique_states.pop()
+            mode = "disable" if state else "enable"
+        else:
+            mode = "toggle"
+
+        if selection_count > 1:
+            toggle_label = {
+                "disable": "Disable Selected",
+                "enable": "Enable Selected",
+                "toggle": "Toggle Selected",
+            }[mode]
+        else:
+            toggle_label = {
+                "disable": "Disable",
+                "enable": "Enable",
+                "toggle": "Toggle Enabled",
+            }[mode]
+
+        toggle_action = menu.addAction(toggle_label)
+        toggle_action.triggered.connect(
+            lambda _checked=False, m=mode, idxs=selected_indexes: self.samples_enable_state_requested.emit(
+                idxs, m
+            )
         )
-        disable_others_action = menu.addAction("Disable Other Samples")
+
+        # Disable others option
+        disable_others_label = (
+            "Disable Other Samples" if selection_count == 1 else "Disable Unselected Samples"
+        )
+        disable_others_action = menu.addAction(disable_others_label)
         disable_others_action.triggered.connect(
-            lambda: self.sample_disable_others_requested.emit(seg_index)
+            lambda _checked=False, idxs=selected_indexes: self.samples_disable_others_requested.emit(
+                idxs
+            )
         )
-        edit_name_action = menu.addAction("Edit Name")
-        edit_name_action.triggered.connect(lambda: self.sample_name_edit_requested.emit(seg_index))
+
+        edit_label = "Edit Name" if selection_count == 1 else "Edit Names"
+        edit_name_action = menu.addAction(edit_label)
+        edit_name_action.triggered.connect(
+            lambda _checked=False, idxs=selected_indexes: self.samples_name_edit_requested.emit(
+                idxs
+            )
+        )
 
         menu.addSeparator()
 
@@ -1637,8 +1691,11 @@ class SpectrogramWidget(QWidget):
 
         menu.addSeparator()
 
-        delete_action = menu.addAction("Delete Sample")
-        delete_action.triggered.connect(lambda: self.sample_deleted.emit(seg_index))
+        delete_label = "Delete Sample" if selection_count == 1 else "Delete Samples"
+        delete_action = menu.addAction(delete_label)
+        delete_action.triggered.connect(
+            lambda _checked=False, idxs=selected_indexes: self.samples_delete_requested.emit(idxs)
+        )
 
         menu.exec(pos)
 

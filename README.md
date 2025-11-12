@@ -10,7 +10,7 @@ SpectroSampler is delivered as a GUI desktop app. Command-line usage is limited 
 
 - **Guided Workspace** – Welcome screen with recent projects/audio, autosave controls, and persistent window layout.
 - **Detection Engine** – Multiple detectors (auto mix, voice VAD, transient, non-silence energy, spectral interestingness) with per-mode thresholds, merge rules, gap/duration guards, and multi-core processing control (`CPU workers`). Voice VAD pre-filters audio with a configurable 200–4500 Hz band-pass before WebRTC scoring so speech-focused projects stay cleaner.
-- **Editing Surface** – High-resolution spectrogram (0.5×–32× zoom), navigator overview, draggable sample markers, context actions (play, disable, edit name, center/fill view, delete), and lockable grid snapping (time or musical bars).
+- **Editing Surface** – High-resolution spectrogram (0.5×–32× zoom), navigator overview, draggable sample markers, context actions (play, enable/disable toggle, rename/delete selections, center/fill view), and lockable grid snapping (time or musical bars).
 - **Playback & Review** – Integrated sample player with looping, scrub bar, next/previous navigation, live playback indicator on the spectrogram, and sample table shortcuts (center/fill/play/delete).
 - **Export Pipeline** – Per-project format, sample rate, bit depth, channel configuration, and padding. Export selected samples without re-encoding by default (WAV/FLAC supported out of the box).
 - **Session Safety** – Project files capture every setting (including overlap resolution defaults and editor layout), autosave keeps rotating backups, the overlap dialog protects existing edits when re-running detection, and a Help → Diagnostics panel surfaces FFmpeg and audio device information for quick troubleshooting.
@@ -109,10 +109,10 @@ spectrosampler-gui --version          Show version and exit
 ### Reviewing & Editing
 - Select samples in the spectrogram or info table (they stay in sync).
 - Use `Ctrl`-click to toggle additional samples and `Shift`-click to extend the selection in both views for bulk zooming, editing, and export operations.
-- Right-click a segment to rename it; the chosen name appears beneath the sample ID on the spectrogram and flows into export filenames.
+- Right-click a segment or multi-selection to toggle enablement, rename samples in bulk, disable everything else, or delete the selection; chosen names appear beneath the sample ID and flow into export filenames.
 - Frame one or more samples instantly with **View → Zoom to Selection** (`Ctrl+Shift+F`) to inspect edits without manual panning.
 - Use **Duration Edits** (Edit menu) to expand/contract or stretch from start/end.
-- Re-order or re-rank samples automatically (Edit → Auto Sample Order / Re-order Samples).
+- Re-order or re-rank samples automatically (Edit → Auto Sample Order / Re-order Samples), and use **Enable All Samples** / **Disable All Samples** for quick project-wide toggles.
 - Toggle display of disabled samples (View menu).
 - Switch between System, Dark, and Light themes (View → Theme); the choice persists between sessions via your local preferences.
 - Lock snap to grid or adjust BPM/subdivision (View → Grid Settings).

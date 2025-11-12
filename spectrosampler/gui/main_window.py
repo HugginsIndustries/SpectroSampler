@@ -133,6 +133,8 @@ class MainWindow(QMainWindow):
         self._theme_mode = self._settings_manager.get_theme_preference()
         self._theme_manager.apply_theme(self._theme_mode)
         self._zoom_selection_action: QAction | None = None
+        self._disable_all_action: QAction | None = None
+        self._enable_all_action: QAction | None = None
 
         # Auto-save manager
         self._autosave_manager = AutoSaveManager(self)
@@ -249,6 +251,14 @@ class MainWindow(QMainWindow):
         self._spectrogram_widget.sample_center_requested.connect(self._on_center_clicked)
         self._spectrogram_widget.sample_center_fill_requested.connect(self._on_fill_clicked)
         self._spectrogram_widget.selection_changed.connect(self._on_spectrogram_selection_changed)
+        self._spectrogram_widget.samples_enable_state_requested.connect(
+            self._on_samples_enable_state_requested
+        )
+        self._spectrogram_widget.samples_disable_others_requested.connect(
+            self._on_disable_other_samples
+        )
+        self._spectrogram_widget.samples_name_edit_requested.connect(self._on_edit_sample_names)
+        self._spectrogram_widget.samples_delete_requested.connect(self._on_delete_samples)
         # Keep navigator highlight synced to editor zoom/pan
         self._spectrogram_widget.view_changed.connect(
             lambda s, e: self._navigator.set_view_range(s, e)
@@ -516,10 +526,14 @@ class MainWindow(QMainWindow):
         delete_all_action.triggered.connect(self._on_delete_all_samples)
         edit_menu.addAction(delete_all_action)
 
-        # Disable All Samples
-        disable_all_action = QAction("&Disable All Samples", self)
-        disable_all_action.triggered.connect(self._on_disable_all_samples)
-        edit_menu.addAction(disable_all_action)
+        # Enable/Disable All Samples
+        self._enable_all_action = QAction("&Enable All Samples", self)
+        self._enable_all_action.triggered.connect(self._on_enable_all_samples)
+        edit_menu.addAction(self._enable_all_action)
+
+        self._disable_all_action = QAction("&Disable All Samples", self)
+        self._disable_all_action.triggered.connect(self._on_disable_all_samples)
+        edit_menu.addAction(self._disable_all_action)
 
         # Show Disabled Samples (toggle, default true)
         self._show_disabled_action = QAction("Show &Disabled Samples", self)
@@ -755,6 +769,8 @@ class MainWindow(QMainWindow):
         about_action = QAction("&About", self)
         about_action.triggered.connect(self._on_about)
         help_menu.addAction(about_action)
+
+        self._update_sample_action_states()
 
     def _setup_status_bar(self) -> None:
         """Setup status bar."""
@@ -2309,18 +2325,7 @@ class MainWindow(QMainWindow):
         Args:
             index: Sample index.
         """
-        if self._pipeline_wrapper and 0 <= index < len(self._pipeline_wrapper.current_segments):
-            # Push undo state before deleting
-            self._push_undo_state()
-            del self._pipeline_wrapper.current_segments[index]
-            self._maybe_auto_reorder()
-            self._spectrogram_widget.set_segments(self._get_display_segments())
-            self._update_sample_table(self._pipeline_wrapper.current_segments)
-            self._update_navigator_markers()
-
-            # Mark as modified (sample deleted)
-            self._project_modified = True
-            self._update_window_title()
+        self._on_delete_samples([index])
 
     def _update_navigator_markers(self) -> None:
         """Update navigator markers from current segments."""
@@ -2815,6 +2820,8 @@ class MainWindow(QMainWindow):
         else:
             self._clear_sample_selection()
 
+        self._update_sample_action_states()
+
     def _sync_table_selection_from_state(self) -> None:
         """Synchronize the table's selection to match internal state."""
 
@@ -3044,13 +3051,49 @@ class MainWindow(QMainWindow):
         """Disable all samples (set enabled=False)."""
         if not self._pipeline_wrapper:
             return
-        for s in self._pipeline_wrapper.current_segments:
-            if not hasattr(s, "attrs") or s.attrs is None:
-                s.attrs = {}
-            s.attrs["enabled"] = False
+
+        any_changed = False
+        for seg in self._pipeline_wrapper.current_segments:
+            if not hasattr(seg, "attrs") or seg.attrs is None:
+                seg.attrs = {}
+            if seg.attrs.get("enabled", True):
+                seg.attrs["enabled"] = False
+                any_changed = True
+
+        if not any_changed:
+            self._update_sample_action_states()
+            return
+
         self._update_sample_table(self._pipeline_wrapper.current_segments)
         self._spectrogram_widget.set_segments(self._get_display_segments())
         self._update_navigator_markers()
+        self._project_modified = True
+        self._update_window_title()
+        self._status_label.setText("Disabled all samples")
+
+    def _on_enable_all_samples(self) -> None:
+        """Enable all samples (set enabled=True)."""
+        if not self._pipeline_wrapper:
+            return
+
+        any_changed = False
+        for seg in self._pipeline_wrapper.current_segments:
+            if not hasattr(seg, "attrs") or seg.attrs is None:
+                seg.attrs = {}
+            if not seg.attrs.get("enabled", True):
+                seg.attrs["enabled"] = True
+                any_changed = True
+
+        if not any_changed:
+            self._update_sample_action_states()
+            return
+
+        self._update_sample_table(self._pipeline_wrapper.current_segments)
+        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._update_navigator_markers()
+        self._project_modified = True
+        self._update_window_title()
+        self._status_label.setText("Enabled all samples")
 
     def _on_toggle_show_disabled(self, show: bool) -> None:
         """Toggle visibility of disabled samples in views."""
@@ -3064,96 +3107,233 @@ class MainWindow(QMainWindow):
 
     def _on_edit_sample_name(self, index: int) -> None:
         """Open input dialog to edit the selected sample name."""
+        self._on_edit_sample_names([index])
+
+    def _on_edit_sample_names(self, indexes: list[int]) -> None:
+        """Batch edit names for the provided sample indexes."""
         if not self._pipeline_wrapper:
             return
-        if not (0 <= index < len(self._pipeline_wrapper.current_segments)):
+
+        normalized = self._normalize_sample_indexes(indexes)
+        if not normalized:
             return
 
-        seg = self._pipeline_wrapper.current_segments[index]
-        if not hasattr(seg, "attrs") or seg.attrs is None:
-            seg.attrs = {}
-        current_name = str(seg.attrs.get("name", "")).strip()
+        segments = self._pipeline_wrapper.current_segments
 
-        value, accepted = QInputDialog.getText(
-            self,
-            "Edit Sample Name",
-            "Name (optional):",
-            text=current_name,
-        )
+        if len(normalized) == 1:
+            idx = normalized[0]
+            seg = segments[idx]
+            if not hasattr(seg, "attrs") or seg.attrs is None:
+                seg.attrs = {}
+            current_name = str(seg.attrs.get("name", "")).strip()
+            title = "Edit Sample Name"
+            prompt = "Name (optional):"
+            default_text = current_name
+        else:
+            existing_names = set()
+            for idx in normalized:
+                seg = segments[idx]
+                if hasattr(seg, "attrs") and seg.attrs is not None:
+                    existing_names.add(str(seg.attrs.get("name", "")).strip())
+            default_text = existing_names.pop() if len(existing_names) == 1 else ""
+            title = "Edit Sample Names"
+            prompt = "Name (optional) for selected samples:"
+
+        value, accepted = QInputDialog.getText(self, title, prompt, text=default_text)
         if not accepted:
             return
 
         new_name = value.strip()
-        if new_name == current_name:
+
+        any_changed = False
+        for idx in normalized:
+            seg = segments[idx]
+            if not hasattr(seg, "attrs") or seg.attrs is None:
+                seg.attrs = {}
+            current = str(seg.attrs.get("name", "")).strip()
+            if new_name == current:
+                continue
+            if new_name:
+                seg.attrs["name"] = new_name
+            else:
+                seg.attrs.pop("name", None)
+            try:
+                self._sample_table_model.setData(
+                    self._sample_table_model.index(1, idx),
+                    new_name,
+                    Qt.EditRole,
+                )
+            except (RuntimeError, ValueError) as exc:
+                logger.debug("Failed to update sample name: %s", exc, exc_info=exc)
+            any_changed = True
+
+        if not any_changed:
             return
 
-        if new_name:
-            seg.attrs["name"] = new_name
-        else:
-            seg.attrs.pop("name", None)
-
-        try:
-            self._sample_table_model.setData(
-                self._sample_table_model.index(1, index),
-                new_name,
-                Qt.EditRole,
-            )
-        except (RuntimeError, ValueError) as exc:
-            logger.debug("Failed to update sample name: %s", exc, exc_info=exc)
-
         self._spectrogram_widget.set_segments(self._get_display_segments())
-        self._sample_table_view.selectColumn(index)
+        if len(normalized) == 1:
+            self._sample_table_view.selectColumn(normalized[0])
         self._project_modified = True
         self._update_window_title()
-        self._status_label.setText("Updated sample name")
+        status = "Updated sample names" if len(normalized) > 1 else "Updated sample name"
+        self._status_label.setText(status)
+
+    def _on_samples_enable_state_requested(self, indexes: list[int], mode: str) -> None:
+        """Handle enable/disable/toggle requests from the spectrogram context menu."""
+        if not self._pipeline_wrapper:
+            return
+
+        normalized = self._normalize_sample_indexes(indexes)
+        if not normalized:
+            return
+
+        segments = self._pipeline_wrapper.current_segments
+        any_changed = False
+
+        for idx in normalized:
+            seg = segments[idx]
+            if not hasattr(seg, "attrs") or seg.attrs is None:
+                seg.attrs = {}
+            current_enabled = seg.attrs.get("enabled", True)
+            if mode == "toggle":
+                new_enabled = not current_enabled
+            elif mode == "enable":
+                new_enabled = True
+            else:
+                new_enabled = False
+
+            if new_enabled == current_enabled:
+                continue
+
+            seg.attrs["enabled"] = new_enabled
+            any_changed = True
+
+            try:
+                self._sample_table_model.setData(
+                    self._sample_table_model.index(0, idx),
+                    Qt.Checked if new_enabled else Qt.Unchecked,
+                    Qt.CheckStateRole,
+                )
+            except (RuntimeError, ValueError) as exc:
+                logger.debug("Failed to update sample enabled state: %s", exc, exc_info=exc)
+
+        if any_changed:
+            self._spectrogram_widget.set_segments(self._get_display_segments())
+            self._update_navigator_markers()
+            self._project_modified = True
+            self._update_window_title()
+            label = {
+                "enable": "Enabled selected samples",
+                "disable": "Disabled selected samples",
+                "toggle": "Toggled selected samples",
+            }.get(mode, "Updated sample enabled state")
+            self._status_label.setText(label)
+
+        self._update_sample_action_states()
 
     def _on_disable_sample(self, index: int, disabled: bool) -> None:
         """Disable/enable single sample from context menu."""
+        mode = "disable" if disabled else "enable"
+        self._on_samples_enable_state_requested([index], mode)
+
+    def _on_disable_other_samples(self, indexes: int | Iterable[int]) -> None:
+        """Disable all samples except the provided index or indexes."""
         if not self._pipeline_wrapper:
             return
-        if 0 <= index < len(self._pipeline_wrapper.current_segments):
-            seg = self._pipeline_wrapper.current_segments[index]
+
+        if isinstance(indexes, Iterable) and not isinstance(indexes, int):
+            normalized = self._normalize_sample_indexes(list(indexes))
+            if not normalized:
+                return
+            keep = set(normalized)
+        else:
+            if not isinstance(indexes, int):
+                return
+            keep = {indexes}
+
+        segments = self._pipeline_wrapper.current_segments
+        for i, seg in enumerate(segments):
             if not hasattr(seg, "attrs") or seg.attrs is None:
                 seg.attrs = {}
-            seg.attrs["enabled"] = False if disabled else True
-            # Notify model
-            try:
-                self._sample_table_model.setData(
-                    self._sample_table_model.index(0, index),
-                    Qt.Checked if seg.attrs["enabled"] else Qt.Unchecked,
-                    Qt.CheckStateRole,
-                )
-            except (RuntimeError, ValueError) as exc:
-                logger.debug("Failed to update sample enabled state: %s", exc, exc_info=exc)
-            self._spectrogram_widget.set_segments(self._get_display_segments())
-            self._update_navigator_markers()
-
-            # Mark as modified (sample disabled/enabled)
-            self._project_modified = True
-            self._update_window_title()
-
-    def _on_disable_other_samples(self, index: int) -> None:
-        """Disable all samples except the given index."""
-        if not self._pipeline_wrapper:
-            return
-        for i, s in enumerate(self._pipeline_wrapper.current_segments):
-            if not hasattr(s, "attrs") or s.attrs is None:
-                s.attrs = {}
-            s.attrs["enabled"] = i == index
+            new_enabled = i in keep
+            if seg.attrs.get("enabled", True) == new_enabled:
+                continue
+            seg.attrs["enabled"] = new_enabled
             try:
                 self._sample_table_model.setData(
                     self._sample_table_model.index(0, i),
-                    Qt.Checked if s.attrs["enabled"] else Qt.Unchecked,
+                    Qt.Checked if new_enabled else Qt.Unchecked,
                     Qt.CheckStateRole,
                 )
             except (RuntimeError, ValueError) as exc:
                 logger.debug("Failed to update sample enabled state: %s", exc, exc_info=exc)
+
         self._spectrogram_widget.set_segments(self._get_display_segments())
         self._update_navigator_markers()
 
         # Mark as modified (samples disabled/enabled)
         self._project_modified = True
         self._update_window_title()
+        self._status_label.setText("Disabled unselected samples")
+        self._update_sample_action_states()
+
+    def _on_delete_samples(self, indexes: list[int]) -> None:
+        """Delete one or many samples."""
+        if not self._pipeline_wrapper:
+            return
+
+        normalized = self._normalize_sample_indexes(indexes)
+        if not normalized:
+            return
+
+        self._push_undo_state()
+
+        segments = self._pipeline_wrapper.current_segments
+        for idx in sorted(normalized, reverse=True):
+            del segments[idx]
+
+        self._maybe_auto_reorder()
+        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._update_sample_table(segments)
+        self._update_navigator_markers()
+
+        self._project_modified = True
+        self._update_window_title()
+        deleted_count = len(normalized)
+        status = "Deleted sample" if deleted_count == 1 else f"Deleted {deleted_count} samples"
+        self._status_label.setText(status)
+
+    def _update_sample_action_states(self) -> None:
+        """Enable or disable bulk sample actions based on current state."""
+        if self._disable_all_action is None or self._enable_all_action is None:
+            return
+
+        if not self._pipeline_wrapper:
+            self._disable_all_action.setEnabled(False)
+            self._enable_all_action.setEnabled(False)
+            return
+
+        segments = self._pipeline_wrapper.current_segments
+        if not segments:
+            self._disable_all_action.setEnabled(False)
+            self._enable_all_action.setEnabled(False)
+            return
+
+        any_enabled = False
+        any_disabled = False
+        for seg in segments:
+            enabled = True
+            if hasattr(seg, "attrs") and seg.attrs is not None:
+                enabled = seg.attrs.get("enabled", True)
+            if enabled:
+                any_enabled = True
+            else:
+                any_disabled = True
+            if any_enabled and any_disabled:
+                break
+
+        self._disable_all_action.setEnabled(any_enabled)
+        self._enable_all_action.setEnabled(any_disabled)
 
     def _on_export_samples(self) -> None:
         """Handle export samples action."""
@@ -3409,6 +3589,7 @@ class MainWindow(QMainWindow):
         # Mark as modified
         self._project_modified = True
         self._update_window_title()
+        self._update_sample_action_states()
 
     def _on_model_times_edited(self, column: int, start: float, end: float) -> None:
         if not self._pipeline_wrapper or not (
