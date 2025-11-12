@@ -2,6 +2,8 @@
 
 These rules apply to any automated assistant working in this repository. Follow them for every task unless explicitly overruled by the maintainer.
 
+Compliance with these rules is mandatory for every contribution.
+
 1. **Keep documentation current.** When you change behavior, configuration, or any user-facing flow, update both `README.md` and `docs/GUI_GUIDE.md` together. Make sure the acceptance criteria and examples still match reality, keep the content focused on current behaviour (no legacy callouts or “now/previously” phrasing), add clear plain-language comments explaining any new or changed code, and highlight the documentation updates in your final summary.
 2. **Maintain code quality.** Follow the project's established formatting tools and idioms (naming, typing, docstrings, etc.). Prefer clear structure, descriptive naming, defensive programming, and add tests when behavior could regress.
 3. **Maintain `TODO.md`.** Before starting work, read the entire `TODO.md`. When tasks touch roadmap items, update the relevant entries using the maintainer guide at the top (imperative phrasing, priority tags, acceptance bullets, summary counts). Do not mark items complete—remove them once finished—and confirm the summary counts still reflect reality before handing off.
@@ -11,6 +13,13 @@ These rules apply to any automated assistant working in this repository. Follow 
 7. **Prioritize current release.** The program is unreleased; skip backward compatibility. Optimize functionality and efficiency first, document only the current behaviour (no legacy callouts or comparisons), and when you make performance-oriented changes, provide a brief rationale or metric so the benefit is clear.
 8. **Preserve user edits.** Leave any existing uncommitted changes untouched unless the maintainer explicitly instructs you to revert them. If you encounter unexpected workspace changes mid-task, pause and ask how to proceed instead of reverting or overwriting; when they touch the same files you’re editing, review and reconcile them carefully before continuing.
 9. **Document in lockstep.** When behavior changes, update `README.md` and `docs/GUI_GUIDE.md` in the same commit, keep both focused on current behaviour (no legacy callouts or “now it…” wording), and mention the cross-check in your summary.
-10. **Explain changes.** In your final summary, provide a detailed account of what you changed, how you changed it, and why the change was necessary so reviewers fully understand the reasoning.
+10. **Explain changes.** In your final summary, provide a detailed account of what you changed, how you changed it, and why the change was necessary so reviewers fully understand the reasoning. Follow the summary with a commit message that starts with a concise title line, then a blank line, then a bulleted list of key changes (following the example below).
 
-Compliance with these rules is mandatory for every contribution.
+Commit Message Example:
+
+Add playback indicator and enhance settings persistence
+
+- Updated `README.md` and `docs/GUI_GUIDE.md` to showcase the new spectrogram playhead and note that detection/export preferences persist across sessions.
+- Updated `spectrosampler/gui/spectrogram_widget.py` and `spectrosampler/gui/main_window.py` to draw the playback indicator, sync it with the player, and keep scrub actions paused when appropriate.
+- Enhanced `spectrosampler/gui/settings.py`, `spectrosampler/gui/detection_settings.py`, `spectrosampler/pipeline_settings.py`, and `spectrosampler/gui/project.py` to serialize/persist detection and export settings, applying them during startup and project loads.
+- Added regression coverage in `tests/test_settings.py` and the new `tests/test_spectrogram_widget.py`, and refreshed `TODO.md` to remove the completed roadmap items.
