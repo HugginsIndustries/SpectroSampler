@@ -28,7 +28,7 @@ Autosave is enabled by default. If SpectroSampler detects an autosave newer than
 | Area | Purpose |
 | --- | --- |
 | **Detection Settings (left panel)** | Detector choice, thresholds, timing limits, CPU worker count, denoise/filters, overlap defaults, detection trigger button. |
-| **Sample Player (top center)** | Metadata readout, play/pause/stop, next/previous navigation, loop toggle, scrub slider, and a playback line mirrored on the spectrogram. |
+| **Sample Player (top center)** | Metadata readout, play/pause/stop, next/previous navigation, loop toggle, auto-play-next toggle, scrub slider, and a playback line mirrored on the spectrogram. |
 | **Waveform Preview (above spectrogram)** | Downsampled amplitude view linked to the editor view; drag the divider to resize or collapse it, or toggle via **View → Show Waveform**. |
 | **Spectrogram Canvas (center)** | Zoom/pan view, draw or adjust sample regions, right-click for context actions (play, toggle enable/disable, rename/delete selections, center/fill, disable others), drag handles to resize. |
 | **Navigator Overview (below spectrogram)** | Miniature spectrogram with a draggable viewport rectangle for quick jumps. |
@@ -125,6 +125,7 @@ When the settings look good, click **Detect Samples** or press `Ctrl+D`. A full-
 - Select a sample to populate the player with ID, start/end, duration, and detector name.
 - Transport buttons provide play/pause/stop/next/previous control; `Space` plays the focused sample.
 - Toggle **Loop** to rehearse a region.
+- Toggle **Auto-play Next** to advance automatically to the next enabled sample when playback finishes. Loop remains higher priority—if Loop is on, the current segment repeats instead of advancing.
 - Scrub within the sample using the slider; releasing emits a seek event while playback continues.
 - A vertical playhead appears on the spectrogram whenever audio is running (dashed when paused) so you can line up the timeline visually.
 

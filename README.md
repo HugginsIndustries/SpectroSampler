@@ -11,7 +11,7 @@ SpectroSampler is delivered as a GUI desktop app. Command-line usage is limited 
 - **Guided Workspace** – Welcome screen with recent projects/audio, autosave controls, and persistent window layout.
 - **Detection Engine** – Multiple detectors (auto mix, voice VAD, transient, non-silence energy, spectral interestingness) with per-mode thresholds, merge rules, gap/duration guards, and multi-core processing control (`CPU workers`). Voice VAD pre-filters audio with a configurable 200–4500 Hz band-pass before WebRTC scoring so speech-focused projects stay cleaner.
 - **Editing Surface** – High-resolution spectrogram (0.5×–32× zoom) backed by a synchronized waveform preview, navigator overview, draggable sample markers, context actions (play, enable/disable toggle, rename/delete selections, center/fill view), and lockable grid snapping (time or musical bars).
-- **Playback & Review** – Integrated sample player with looping, scrub bar, next/previous navigation, live playback indicator on the spectrogram, and sample table shortcuts (center/fill/play/delete).
+- **Playback & Review** – Integrated sample player with looping, auto-play-next toggle, scrub bar, next/previous navigation, live playback indicator on the spectrogram, and sample table shortcuts (center/fill/play/delete).
 - **Export Pipeline** – Per-project format, sample rate, bit depth, channel configuration, padding, and optional peak normalization. Export selected samples without re-encoding by default (WAV/FLAC supported out of the box).
 - **Session Safety** – Project files capture every setting (including overlap resolution defaults and editor layout), autosave keeps rotating backups, the overlap dialog protects existing edits when re-running detection, and a Help → Diagnostics panel surfaces FFmpeg and audio device information for quick troubleshooting.
 
@@ -110,6 +110,7 @@ spectrosampler-gui --version          Show version and exit
 ### Reviewing & Editing
 - Select samples in the spectrogram or info table (they stay in sync).
 - Use `Ctrl`-click to toggle additional samples and `Shift`-click to extend the selection in both views for bulk zooming, editing, and export operations.
+- Enable the sample player's Auto-play Next toggle to queue the next enabled sample automatically when playback ends; Loop still takes precedence when you need to rehearse a single segment.
 - Right-click a segment or multi-selection to toggle enablement, rename samples in bulk, disable everything else, or delete the selection; chosen names appear beneath the sample ID and flow into export filenames.
 - Frame one or more samples instantly with **View → Zoom to Selection** (`Ctrl+Shift+F`) to inspect edits without manual panning.
 - Use **Duration Edits** (Edit menu) to expand/contract or stretch from start/end.

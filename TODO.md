@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 23 items, P2: 13 items_
+_Summary: P0: 0 items, P1: 23 items, P2: 12 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -42,9 +42,6 @@ _Summary: P0: 0 items, P1: 23 items, P2: 13 items_
 - [ ] [P1] Improve seamless looping for short samples
   - Improve QMediaPlayer usage and buffering; consider crossfade option and/or pre-buffering.
   - Acceptance: On a 250 ms loop, audible gap < 10 ms; optional crossfade toggle.
-- [ ] [P2] Auto-play next sample
-  - Player toggle to automatically advance to the next sample (default off).
-  - Acceptance: When enabled, playback advances on end-of-media.
 
 ### Error Handling & Validation
 - [ ] [P1] Improve FFmpeg subprocess failure handling

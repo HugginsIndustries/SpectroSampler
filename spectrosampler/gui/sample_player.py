@@ -24,6 +24,7 @@ class SamplePlayerWidget(QWidget):
     next_requested = Signal()  # Emitted when next sample is requested
     previous_requested = Signal()  # Emitted when previous sample is requested
     loop_changed = Signal(bool)  # Emitted when loop state changes
+    auto_play_next_changed = Signal(bool)  # Emitted when auto-play-next state changes
     seek_requested = Signal(int)  # Emitted when seek is requested (position in milliseconds)
 
     def __init__(self, parent: QWidget | None = None):
@@ -42,6 +43,7 @@ class SamplePlayerWidget(QWidget):
         self._total_samples: int = 0
         self._is_playing = False
         self._is_looping = False
+        self._auto_play_next = False
 
         # Playback position
         self._current_position = 0  # milliseconds
@@ -145,6 +147,14 @@ class SamplePlayerWidget(QWidget):
         self._loop_checkbox.setToolTip("Loop playback")
         self._loop_checkbox.toggled.connect(self._on_loop_toggled)
         controls_layout.addWidget(self._loop_checkbox)
+
+        # Auto-play next checkbox
+        self._autoplay_checkbox = QCheckBox("Auto-play next")
+        self._autoplay_checkbox.setToolTip(
+            "Play the next sample automatically when playback finishes"
+        )
+        self._autoplay_checkbox.toggled.connect(self._on_autoplay_toggled)
+        controls_layout.addWidget(self._autoplay_checkbox)
 
         layout.addLayout(controls_layout)
 
@@ -268,6 +278,15 @@ class SamplePlayerWidget(QWidget):
         self._is_looping = is_looping
         self._loop_checkbox.setChecked(is_looping)
 
+    def set_auto_play_next(self, enabled: bool) -> None:
+        """Set auto-play-next state.
+
+        Args:
+            enabled: True if auto-play-next should be enabled.
+        """
+        self._auto_play_next = enabled
+        self._autoplay_checkbox.setChecked(enabled)
+
     def _update_display(self) -> None:
         """Update display with current sample info."""
         if self._current_segment is not None and self._current_index is not None:
@@ -341,6 +360,15 @@ class SamplePlayerWidget(QWidget):
         """
         self._is_looping = checked
         self.loop_changed.emit(checked)
+
+    def _on_autoplay_toggled(self, checked: bool) -> None:
+        """Handle auto-play-next checkbox toggle.
+
+        Args:
+            checked: True if checked, False otherwise.
+        """
+        self._auto_play_next = checked
+        self.auto_play_next_changed.emit(checked)
 
     def set_theme_colors(self, colors: dict[str, QColor]) -> None:
         """Set theme colors.

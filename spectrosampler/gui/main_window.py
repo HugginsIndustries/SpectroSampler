@@ -90,6 +90,7 @@ class MainWindow(QMainWindow):
         self._media_player.setAudioOutput(self._audio_output)
         self._temp_playback_file: Path | None = None
         self._loop_enabled = False
+        self._auto_play_next_enabled = False
         self._current_playing_index: int | None = None
         self._current_playing_start: float | None = None
         self._current_playing_end: float | None = None
@@ -100,6 +101,7 @@ class MainWindow(QMainWindow):
         self._selected_sample_indexes: list[int] = []
         self._active_sample_index: int | None = None
         self._syncing_table_selection = False
+        self._suppress_auto_play_next_persist = False
 
         # Undo/redo stacks
         self._undo_stack: list[list[Segment]] = []
@@ -236,6 +238,7 @@ class MainWindow(QMainWindow):
         self._sample_player.next_requested.connect(self._on_player_next_requested)
         self._sample_player.previous_requested.connect(self._on_player_previous_requested)
         self._sample_player.loop_changed.connect(self._on_player_loop_changed)
+        self._sample_player.auto_play_next_changed.connect(self._on_player_auto_play_next_changed)
         self._sample_player.seek_requested.connect(self._on_player_seek_requested)
 
         # Waveform widget
@@ -2263,6 +2266,26 @@ class MainWindow(QMainWindow):
 
         self._apply_export_settings_to_pipeline()
 
+    def _load_persisted_player_preferences(self) -> None:
+        """Restore persisted player-related preferences."""
+        try:
+            auto_play_next = self._settings_manager.get_player_auto_play_next()
+        except (RuntimeError, OSError) as exc:
+            logger.debug("Failed to load auto-play-next preference: %s", exc, exc_info=exc)
+            auto_play_next = False
+        else:
+            try:
+                self._settings_manager.set_player_auto_play_next(auto_play_next)
+            except (RuntimeError, OSError, TypeError, ValueError) as exc:
+                logger.debug(
+                    "Failed to persist auto-play-next preference default: %s", exc, exc_info=exc
+                )
+
+        self._suppress_auto_play_next_persist = True
+        self._auto_play_next_enabled = bool(auto_play_next)
+        self._sample_player.set_auto_play_next(self._auto_play_next_enabled)
+        self._suppress_auto_play_next_persist = False
+
     def _load_persisted_preferences(self) -> None:
         """Load persisted detection and export preferences."""
         try:
@@ -2281,6 +2304,7 @@ class MainWindow(QMainWindow):
         self._suppress_settings_modified = False
 
         self._load_persisted_export_settings()
+        self._load_persisted_player_preferences()
 
     def _on_sample_table_pressed(self, index) -> None:
         """Capture modifiers when the table is clicked."""
@@ -2639,39 +2663,7 @@ class MainWindow(QMainWindow):
             # Clean up temp file when playback finishes and handle looping
             def on_playback_finished(status):
                 if status == QMediaPlayer.MediaStatus.EndOfMedia:
-                    # Don't restart if playback was explicitly stopped
-                    if self._playback_stopped:
-                        self._playback_stopped = False
-                        return
-
-                    # Check if looping is enabled
-                    if self._loop_enabled and self._current_playing_index is not None:
-                        # Restart playback of the same segment without regenerating audio.
-                        self._media_player.setPosition(0)
-                        self._media_player.play()
-                        return
-
-                    # Not looping, clean up
-                    self._sample_player.set_playing(False)
-                    self._current_playing_index = None
-                    self._current_playing_start = None
-                    self._current_playing_end = None
-                    self._is_paused = False
-                    self._paused_position = 0
-                    self._spectrogram_widget.set_playback_state(None, None)
-                    self._waveform_widget.set_playback_state(None, None)
-
-                    if self._temp_playback_file and self._temp_playback_file.exists():
-                        try:
-                            self._temp_playback_file.unlink()
-                            self._temp_playback_file = None
-                        except OSError as exc:
-                            logger.debug(
-                                "Failed to remove temporary playback file %s: %s",
-                                self._temp_playback_file,
-                                exc,
-                                exc_info=exc,
-                            )
+                    self._handle_end_of_media()
 
             # Handler to wait for media to load before playing
             def on_media_status_changed(status):
@@ -2859,6 +2851,95 @@ class MainWindow(QMainWindow):
         """
         # Store loop state for playback
         self._loop_enabled = enabled
+
+    def _on_player_auto_play_next_changed(self, enabled: bool) -> None:
+        """Handle auto-play-next toggle changes from the player widget."""
+        self._auto_play_next_enabled = enabled
+        if self._suppress_auto_play_next_persist:
+            return
+        try:
+            self._settings_manager.set_player_auto_play_next(enabled)
+        except (RuntimeError, OSError) as exc:
+            logger.debug("Failed to persist auto-play-next preference: %s", exc, exc_info=exc)
+
+    def _handle_end_of_media(self) -> None:
+        """Respond to end-of-media events based on loop and auto-play settings."""
+        # Don't restart if playback was explicitly stopped
+        if self._playback_stopped:
+            self._playback_stopped = False
+            return
+
+        # Loop takes precedence over auto-play
+        if self._loop_enabled and self._current_playing_index is not None:
+            self._media_player.setPosition(0)
+            self._media_player.play()
+            return
+
+        next_index: int | None = None
+        if (
+            self._auto_play_next_enabled
+            and self._current_playing_index is not None
+            and self._pipeline_wrapper
+            and self._pipeline_wrapper.current_segments
+        ):
+            next_index = self._find_next_enabled_sample(self._current_playing_index)
+
+        if next_index is not None:
+            self._play_next_sample_from_autoplay(next_index)
+            return
+
+        self._finalize_completed_playback()
+
+    def _play_next_sample_from_autoplay(self, index: int) -> None:
+        """Advance playback to the given index as part of auto-play."""
+        if not self._pipeline_wrapper or not self._pipeline_wrapper.current_segments:
+            self._finalize_completed_playback()
+            return
+
+        # Reset playing state for UI consistency before starting new playback.
+        self._sample_player.set_playing(False)
+
+        model_index = self._sample_table_model.index(0, index)
+        self._sample_table_view.setCurrentIndex(model_index)
+        self._on_sample_selected(index)
+
+        # Start playback of the next sample.
+        self._on_player_play_requested(index)
+
+    def _find_next_enabled_sample(self, from_index: int) -> int | None:
+        """Return the next enabled sample index after from_index, if any."""
+        if not self._pipeline_wrapper or not self._pipeline_wrapper.current_segments:
+            return None
+
+        segments = self._pipeline_wrapper.current_segments
+        for idx in range(from_index + 1, len(segments)):
+            seg = segments[idx]
+            if seg.attrs.get("enabled", True):
+                return idx
+        return None
+
+    def _finalize_completed_playback(self) -> None:
+        """Clean up state after playback ends without auto-advancing."""
+        self._sample_player.set_playing(False)
+        self._current_playing_index = None
+        self._current_playing_start = None
+        self._current_playing_end = None
+        self._is_paused = False
+        self._paused_position = 0
+        self._spectrogram_widget.set_playback_state(None, None)
+        self._waveform_widget.set_playback_state(None, None)
+
+        if self._temp_playback_file and self._temp_playback_file.exists():
+            try:
+                self._temp_playback_file.unlink()
+                self._temp_playback_file = None
+            except OSError as exc:
+                logger.debug(
+                    "Failed to remove temporary playback file %s: %s",
+                    self._temp_playback_file,
+                    exc,
+                    exc_info=exc,
+                )
 
     def _on_media_position_changed(self, position: int) -> None:
         """Handle media player position change.

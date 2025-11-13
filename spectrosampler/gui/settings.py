@@ -366,6 +366,18 @@ class SettingsManager:
         self._settings.setValue("autoSaveInterval", minutes)
         self._settings.sync()
 
+    def get_player_auto_play_next(self) -> bool:
+        """Return whether the player should auto-play the next sample."""
+        value = self._settings.value("player/autoPlayNext", False, type=bool)
+        if value is None:
+            return False
+        return bool(value)
+
+    def set_player_auto_play_next(self, enabled: bool) -> None:
+        """Persist the auto-play-next preference for the player."""
+        self._settings.setValue("player/autoPlayNext", bool(enabled))
+        self._settings.sync()
+
     def get_max_recent_projects(self) -> int:
         """Get maximum number of recent projects to keep.
 

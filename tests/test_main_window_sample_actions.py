@@ -175,3 +175,99 @@ def test_player_toggle_updates_splitter_sizes():
 
     window.deleteLater()
     app.processEvents()
+
+
+def test_handle_end_of_media_without_autoplay_cleans_up(tmp_path):
+    app = _ensure_qapp()
+    window = _make_window_with_segments([True])
+
+    window._loop_enabled = False
+    window._auto_play_next_enabled = False
+    window._current_playing_index = 0
+    window._current_playing_start = 0.0
+    window._current_playing_end = 0.5
+    window._is_paused = False
+    window._paused_position = 0
+
+    temp_file = tmp_path / "playback.wav"
+    temp_file.write_bytes(b"data")
+    window._temp_playback_file = temp_file
+
+    window._handle_end_of_media()
+    app.processEvents()
+
+    assert window._current_playing_index is None
+    assert window._sample_player._is_playing is False
+    assert window._sample_player._current_index is None
+    assert not temp_file.exists()
+    assert window._temp_playback_file is None
+
+    window.deleteLater()
+    app.processEvents()
+
+
+def test_handle_end_of_media_with_autoplay_advances(monkeypatch, tmp_path):
+    app = _ensure_qapp()
+    window = _make_window_with_segments([True, False, True])
+
+    window._auto_play_next_enabled = True
+    window._loop_enabled = False
+    window._current_playing_index = 0
+    window._current_playing_start = 0.0
+    window._current_playing_end = 0.5
+    window._is_paused = False
+    window._paused_position = 0
+    window._current_audio_path = tmp_path / "dummy.wav"
+    window._current_audio_path.write_bytes(b"data")
+
+    played = []
+
+    def fake_play_segment(self, start: float, end: float) -> None:
+        played.append((start, end))
+        self._current_playing_start = start
+        self._current_playing_end = end
+
+    monkeypatch.setattr(
+        window,
+        "_play_segment",
+        fake_play_segment.__get__(window, window.__class__),
+    )
+
+    window._handle_end_of_media()
+    app.processEvents()
+
+    assert window._current_playing_index == 2
+    assert window._active_sample_index == 2
+    assert window._sample_player._current_index == 2
+    assert window._sample_player._is_playing is True
+    assert window._sample_table_view.currentIndex().column() == 2
+    assert played
+    assert played[0][0] == pytest.approx(2.0)
+    assert played[0][1] == pytest.approx(2.5)
+
+    window.deleteLater()
+    app.processEvents()
+
+
+def test_handle_end_of_media_autoplay_last_sample_finalizes(tmp_path):
+    app = _ensure_qapp()
+    window = _make_window_with_segments([True])
+
+    window._auto_play_next_enabled = True
+    window._loop_enabled = False
+    window._current_playing_index = 0
+    window._current_playing_start = 0.0
+    window._current_playing_end = 0.5
+    window._is_paused = False
+    window._paused_position = 0
+    window._current_audio_path = tmp_path / "dummy.wav"
+
+    window._handle_end_of_media()
+    app.processEvents()
+
+    assert window._current_playing_index is None
+    assert window._sample_player._is_playing is False
+    assert window._sample_player._current_index is None
+
+    window.deleteLater()
+    app.processEvents()

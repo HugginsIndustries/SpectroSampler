@@ -139,3 +139,16 @@ def test_export_settings_round_trip(tmp_path, monkeypatch):
     assert loaded["export_sample_rate"] == 48000
     assert loaded["export_bit_depth"] == "24"
     assert loaded["export_channels"] == "stereo"
+
+
+def test_player_auto_play_next_preference_round_trip(tmp_path, monkeypatch):
+    """Auto-play-next preference should persist across manager instances."""
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+
+    manager = SettingsManager()
+    manager.set_player_auto_play_next(False)
+    assert manager.get_player_auto_play_next() is False
+    manager.set_player_auto_play_next(True)
+
+    other = SettingsManager()
+    assert other.get_player_auto_play_next() is True
