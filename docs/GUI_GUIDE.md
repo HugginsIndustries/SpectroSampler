@@ -107,6 +107,8 @@ When the settings look good, click **Detect Samples** or press `Ctrl+D`. A full-
 
 > Screenshot placeholder: `docs/images/detection-overlay.png`
 
+After detection, SpectroSampler compares the analysis copy’s duration to the original file. If there’s a mismatch, a warning dialog summarizes the difference and offers **Try alternate resample**—click it to rerun analysis with a high-precision SOXR resampler before reviewing segments.
+
 ---
 
 ## 4. Navigating & Auditioning
@@ -197,6 +199,7 @@ Open the **Export** menu to configure session-wide parameters:
 - **Sample Rate** – Enter 0 to keep the original.
 - **Bit Depth** – 16-bit, 24-bit, 32-bit float, or “None (original).”
 - **Channels** – Mono, stereo, or “None (original)” to keep source layout.
+- On export failure, SpectroSampler shows a detailed FFmpeg dialog: you’ll see the exact command that failed plus practical suggestions (check source path, ensure FFmpeg is installed, verify the destination folder is writable) so you can make fixes and retry immediately.
 
 When ready, choose **File → Export Samples** (`Ctrl+E`). Only enabled (checked) columns are included. Exported filenames include the detector name, index, optional per-sample Name slug, and source file id, and they are sanitized automatically so reserved characters or Windows device names never derail the export on any platform.
 

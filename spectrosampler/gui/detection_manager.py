@@ -1,6 +1,7 @@
 """Detection manager for background sample detection."""
 
 import logging
+from concurrent.futures import CancelledError, Future
 from pathlib import Path
 from typing import Any
 
@@ -17,7 +18,7 @@ class DetectionWorker(QThread):
 
     progress = Signal(str)
     finished = Signal(dict)
-    error = Signal(str)
+    error = Signal(object)
 
     def __init__(self, pipeline_wrapper: PipelineWrapper, output_dir: Path | None = None):
         super().__init__()
@@ -37,7 +38,7 @@ class DetectionWorker(QThread):
         except (FFmpegError, OSError, RuntimeError, ValueError) as exc:
             logger.error("Detection error: %s", exc, exc_info=exc)
             if not self._cancelled:
-                self.error.emit(str(exc))
+                self.error.emit(exc)
 
 
 class DetectionManager(QObject):
@@ -45,7 +46,7 @@ class DetectionManager(QObject):
 
     progress = Signal(str)  # Emitted with progress message
     finished = Signal(dict)  # Emitted with processing results
-    error = Signal(str)  # Emitted with error message
+    error = Signal(object)  # Emitted with error details (FFmpegError or string)
 
     def __init__(self, parent: QObject | None = None):
         """Initialize detection manager.
@@ -86,9 +87,10 @@ class DetectionManager(QObject):
             self._future = self._pipeline_wrapper.detect_samples_async(
                 output_dir=output_dir, callback=_cb
             )
+            self._future.add_done_callback(self._on_future_done)
         except (FFmpegError, OSError, RuntimeError, ValueError) as exc:
             logger.error("Detection start failed: %s", exc, exc_info=exc)
-            self.error.emit(str(exc))
+            self.error.emit(exc)
 
     def cancel_detection(self) -> None:
         """Cancel detection processing."""
@@ -108,3 +110,25 @@ class DetectionManager(QObject):
         if self._future is None:
             return False
         return not self._future.done()
+
+    def _on_future_done(self, future: Future) -> None:
+        """Inspect future completion and emit error if detection failed."""
+
+        if future.cancelled():
+            logger.info("Detection future was cancelled.")
+            return
+        try:
+            exc = future.exception()
+        except CancelledError:
+            logger.info("Detection future raised CancelledError during inspection.")
+            return
+        except Exception as exc:  # pragma: no cover - defensive logging
+            logger.error(
+                "Unexpected error retrieving detection future exception: %s", exc, exc_info=exc
+            )
+            self.error.emit(exc)
+            return
+
+        if exc is not None:
+            logger.error("Detection future completed with error: %s", exc, exc_info=exc)
+            self.error.emit(exc)

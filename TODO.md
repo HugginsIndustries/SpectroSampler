@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 23 items, P2: 12 items_
+_Summary: P0: 0 items, P1: 21 items, P2: 12 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -44,12 +44,7 @@ _Summary: P0: 0 items, P1: 23 items, P2: 12 items_
   - Acceptance: On a 250 ms loop, audible gap < 10 ms; optional crossfade toggle.
 
 ### Error Handling & Validation
-- [ ] [P1] Improve FFmpeg subprocess failure handling
-  - Keep `FFmpegError` but provide actionable remediation in UI; validate args before run.
-  - Acceptance: Export/cut failures surface a dialog with failing command summary and suggestions.
-- [ ] [P1] Make analysis duration mismatch warning actionable
-  - Provide likely causes and a retry with alternate resampling.
-  - Acceptance: Warning dialog includes “Try alternate resample” that re-runs analysis.
+- No items currently planned
 
 ### Code Quality & Robustness
 - [ ] [P1] Fix undo/redo sync issues

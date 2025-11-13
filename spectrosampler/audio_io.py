@@ -2,7 +2,9 @@
 
 import json
 import logging
+import shlex
 import subprocess
+from collections.abc import Sequence
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -11,9 +13,41 @@ from spectrosampler.utils import compute_file_hash, ensure_dir
 
 
 class FFmpegError(Exception):
-    """Exception raised when FFmpeg operations fail."""
+    """Exception raised when FFmpeg/ffprobe operations fail.
 
-    pass
+    Attributes:
+        command: Full command that was attempted.
+        stderr: Raw stderr output (if any).
+        stdout: Raw stdout output (if any).
+        exit_code: Exit code returned by FFmpeg, if the process started.
+        context: Optional high-level context string describing the attempted action.
+        hints: Suggested remediation steps gathered during failure analysis.
+    """
+
+    def __init__(
+        self,
+        command: Sequence[str],
+        message: str,
+        *,
+        stderr: str = "",
+        stdout: str = "",
+        exit_code: int | None = None,
+        context: str | None = None,
+        hints: Sequence[str] | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.command = list(command)
+        self.stderr = stderr
+        self.stdout = stdout
+        self.exit_code = exit_code
+        self.context = context
+        self.hints = list(hints or [])
+
+    @property
+    def command_summary(self) -> str:
+        """Return the command rendered as a single quoted string."""
+
+        return " ".join(shlex.quote(part) for part in self.command)
 
 
 @dataclass(frozen=True, slots=True)
@@ -57,9 +91,12 @@ def get_audio_info(file_path: Path) -> dict:
         "-show_streams",
         str(file_path),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise FFmpegError(f"ffprobe failed: {proc.stderr}")
+    proc = _run_media_tool(
+        cmd,
+        expected_inputs=[file_path],
+        context="Inspect audio metadata (ffprobe)",
+        tool_name="ffprobe",
+    )
     data = json.loads(proc.stdout or "{}")
     streams = data.get("streams", [])
     astream: dict[str, Any] = next((s for s in streams if s.get("codec_type") == "audio"), {})
@@ -204,13 +241,20 @@ def denoise_audio(
         filters.append(f"afftdn=nr={nr_strength}:nt=w")
     af = ",".join(filters) if filters else "anull"
     cmd = ["ffmpeg", "-y", "-i", str(input_path), "-af", af, str(output_path)]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise FFmpegError(proc.stderr)
+    _run_media_tool(
+        cmd,
+        expected_inputs=[input_path],
+        context="Denoise audio",
+    )
 
 
 def resample_for_analysis(
-    input_path: Path, output_path: Path, target_sr: int = 16000, channels: int = 1
+    input_path: Path,
+    output_path: Path,
+    target_sr: int = 16000,
+    channels: int = 1,
+    *,
+    resample_strategy: str = "default",
 ) -> None:
     """Resample audio to analysis sample rate (16k mono by default).
 
@@ -234,13 +278,19 @@ def resample_for_analysis(
         str(channels),
         "-ar",
         str(target_sr),
-        "-sample_fmt",
-        "s16",
-        str(output_path),
     ]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise FFmpegError(proc.stderr)
+    filters: list[str] = []
+    if resample_strategy == "soxr":
+        filters.append("aresample=resampler=soxr:precision=28")
+    cmd += ["-sample_fmt", "s16"]
+    if filters:
+        cmd += ["-af", ",".join(filters)]
+    cmd.append(str(output_path))
+    _run_media_tool(
+        cmd,
+        expected_inputs=[input_path],
+        context="Prepare analysis resample",
+    )
 
 
 def extract_sample(
@@ -312,9 +362,11 @@ def extract_sample(
         volumedetect_filters.append("volumedetect")
         volumedetect_cmd += ["-af", ",".join(volumedetect_filters), "-f", "null", "-"]
 
-        proc = subprocess.run(volumedetect_cmd, capture_output=True, text=True)
-        if proc.returncode != 0:
-            raise FFmpegError(proc.stderr)
+        proc = _run_media_tool(
+            volumedetect_cmd,
+            expected_inputs=[input_path],
+            context="Sample normalization (peak detect)",
+        )
 
         # Parse peak level from volumedetect output
         # Format: "max_volume: -X.XX dB"
@@ -371,9 +423,11 @@ def extract_sample(
             cmd += ["-f", format]
         cmd += [str(output_path)]
 
-        proc = subprocess.run(cmd, capture_output=True, text=True)
-        if proc.returncode != 0:
-            raise FFmpegError(proc.stderr)
+        _run_media_tool(
+            cmd,
+            expected_inputs=[input_path],
+            context="Sample export (normalized)",
+        )
         return
 
     # Try stream copy first (skip for WAV to ensure precise duration, and skip if normalization needed)
@@ -395,9 +449,18 @@ def extract_sample(
             "copy",
             str(output_path),
         ]
-        proc = subprocess.run(cmd_copy, capture_output=True, text=True)
-        if proc.returncode == 0:
+        try:
+            _run_media_tool(
+                cmd_copy,
+                expected_inputs=[input_path],
+                context="Sample export (stream copy)",
+            )
             return
+        except FFmpegError:
+            # Stream copy failed; fall back to re-encode path below.
+            logging.debug(
+                "FFmpeg stream copy failed; falling back to re-encode for %s", output_path
+            )
     # Fallback: re-encode (for non-normalized exports or when stream copy fails)
     fallback_filters: list[str] = []
     if fade_in_ms and fade_in_ms > 0:
@@ -434,9 +497,11 @@ def extract_sample(
     if format:
         cmd += ["-f", format]
     cmd += [str(output_path)]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise FFmpegError(proc.stderr)
+    _run_media_tool(
+        cmd,
+        expected_inputs=[input_path],
+        context="Sample export",
+    )
 
 
 def generate_spectrogram_png(
@@ -462,9 +527,11 @@ def generate_spectrogram_png(
     logging.debug(f"Generating spectrogram PNG: {input_path} -> {output_path}")
     vf = f"showspectrumpic=s={size}:legend=disabled:color=intensity:scale={scale}:gain={gain_db}"
     cmd = ["ffmpeg", "-y", "-i", str(input_path), "-lavfi", vf, str(output_path)]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise FFmpegError(proc.stderr)
+    _run_media_tool(
+        cmd,
+        expected_inputs=[input_path],
+        context="Generate spectrogram PNG",
+    )
 
 
 def generate_spectrogram_video(
@@ -492,9 +559,11 @@ def generate_spectrogram_video(
     logging.debug(f"Generating spectrogram video: {input_path} -> {output_path}")
     vf = f"showspectrum=fstart={fstart}:fstop={fstop}:size={size}:color=intensity:scale=log:legend=disabled:gain={gain_db}"
     cmd = ["ffmpeg", "-y", "-i", str(input_path), "-lavfi", vf, str(output_path)]
-    proc = subprocess.run(cmd, capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise FFmpegError(proc.stderr)
+    _run_media_tool(
+        cmd,
+        expected_inputs=[input_path],
+        context="Generate spectrogram video",
+    )
 
 
 class AudioCache:
@@ -554,3 +623,117 @@ class AudioCache:
             True if cached file exists.
         """
         return self.get_cached_path(cache_key, suffix).exists()
+
+
+def _run_media_tool(
+    command: Sequence[str],
+    *,
+    expected_inputs: Sequence[Path] | None = None,
+    context: str | None = None,
+    tool_name: str = "ffmpeg",
+) -> subprocess.CompletedProcess:
+    """Execute an FFmpeg/ffprobe command with preflight validation and rich errors.
+
+    Args:
+        command: Command arguments to execute.
+        expected_inputs: Optional iterable of paths that must exist before execution.
+        context: Human-readable description of the attempted action.
+        tool_name: Display name for the media tool ('ffmpeg' or 'ffprobe').
+
+    Returns:
+        CompletedProcess instance from subprocess.run.
+
+    Raises:
+        FFmpegError: If preflight validation fails or the subprocess exits non-zero.
+    """
+
+    inputs = list(expected_inputs or [])
+    missing = [str(path) for path in inputs if not Path(path).exists()]
+    if missing:
+        hints = [
+            "Confirm the source file still exists and is readable.",
+            "Reconnect external drives if the audio file is stored externally.",
+        ]
+        message = (
+            f"{tool_name} could not start because required input file(s) were missing: "
+            + ", ".join(missing)
+        )
+        raise FFmpegError(
+            command,
+            message,
+            context=context,
+            hints=hints,
+        )
+
+    try:
+        proc = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+    except FileNotFoundError as exc:
+        hints = [
+            "Install FFmpeg and ensure the executables are on your system PATH.",
+            "Restart SpectroSampler after installing FFmpeg so the new PATH is picked up.",
+        ]
+        message = f"{tool_name} executable was not found. Install FFmpeg and ensure '{command[0]}' is on PATH."
+        raise FFmpegError(
+            command,
+            message,
+            context=context,
+            hints=hints,
+        ) from exc
+
+    if proc.returncode != 0:
+        hints = [
+            "Open Help → Diagnostics to verify FFmpeg is detected.",
+            "Check that the export/output folder is writable.",
+            "Review the detailed FFmpeg output for specific codec or format errors.",
+        ]
+        message = f"{tool_name} command failed with exit code {proc.returncode}."
+        raise FFmpegError(
+            command,
+            message,
+            stderr=proc.stderr or "",
+            stdout=proc.stdout or "",
+            exit_code=proc.returncode,
+            context=context,
+            hints=hints,
+        )
+
+    return proc
+
+
+def describe_ffmpeg_failure(error: FFmpegError) -> tuple[str, list[str]]:
+    """Return a user-facing summary and remediation suggestions for FFmpeg failures."""
+
+    base_summary = error.args[0] if error.args else "FFmpeg reported an error."
+    if error.exit_code is not None:
+        base_summary = f"{base_summary} (exit code {error.exit_code})"
+    if error.context:
+        base_summary = f"{error.context} failed.\n{base_summary}"
+
+    stderr_lower = (error.stderr or "").lower()
+    suggestions = list(error.hints)
+
+    def _ensure_hint(hint: str) -> None:
+        if hint not in suggestions:
+            suggestions.append(hint)
+
+    if "no such file or directory" in stderr_lower or "could not open" in stderr_lower:
+        _ensure_hint("Verify the source audio still exists and that the path has not changed.")
+    if "permission denied" in stderr_lower or "access is denied" in stderr_lower:
+        _ensure_hint("Confirm you have write permission to the export folder and try again.")
+    if "invalid argument" in stderr_lower:
+        _ensure_hint("Adjust the selected sample rate, bit depth, or format to supported values.")
+    if "decoder" in stderr_lower or "unable to find stream info" in stderr_lower:
+        _ensure_hint(
+            "Try converting the source file to WAV/FLAC using a separate tool, then re-import."
+        )
+
+    # Always provide at least one actionable next step.
+    if not suggestions:
+        suggestions.append("Review the detailed FFmpeg output and adjust settings before retrying.")
+
+    return base_summary, suggestions

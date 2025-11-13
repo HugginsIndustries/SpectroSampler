@@ -419,15 +419,26 @@ def process_file(
     # Caching
     cache_key = None
     denoised_path = out_base / "data" / f"{base_name}_denoised.wav"
-    analysis_path = out_base / "data" / f"{base_name}_analysis_16k.wav"
+    resample_strategy = getattr(settings, "analysis_resample_strategy", "default")
+    if not isinstance(resample_strategy, str):
+        resample_strategy = "default"
+    resample_strategy = resample_strategy.strip().lower()
+    if resample_strategy not in {"default", "soxr"}:
+        resample_strategy = "default"
+    analysis_suffix = (
+        "_analysis_16k.wav"
+        if resample_strategy == "default"
+        else f"_analysis_16k_{resample_strategy}.wav"
+    )
+    analysis_path = out_base / "data" / f"{base_name}{analysis_suffix}"
     if cache:
         cache_key = cache.get_cache_key(
             input_path,
             {"denoise": settings.denoise, "hp": settings.hp, "lp": settings.lp, "nr": settings.nr},
-            {"sr": settings.analysis_sr, "ch": 1},
+            {"sr": settings.analysis_sr, "ch": 1, "strategy": resample_strategy},
         )
         denoised_path = cache.get_cached_path(cache_key, "_denoised.wav")
-        analysis_path = cache.get_cached_path(cache_key, "_analysis_16k.wav")
+        analysis_path = cache.get_cached_path(cache_key, analysis_suffix)
 
     # Denoise
     if settings.denoise == "off":
@@ -446,7 +457,11 @@ def process_file(
     # Analysis copy
     if not analysis_path.exists() or not settings.cache:
         resample_for_analysis(
-            denoised_path, analysis_path, target_sr=settings.analysis_sr, channels=1
+            denoised_path,
+            analysis_path,
+            target_sr=settings.analysis_sr,
+            channels=1,
+            resample_strategy=resample_strategy,
         )
 
     # Load analysis audio
@@ -459,10 +474,33 @@ def process_file(
     # Verify full file was processed
     analysis_dur = len(analysis_audio) / sr
     expected_dur = float(audio_info.get("duration", 0.0))
+    warnings: list[dict[str, Any]] = []
     if expected_dur > 0 and abs(analysis_dur - expected_dur) > 1.0:
         logging.warning(
-            f"Analysis audio duration mismatch: expected {expected_dur:.1f}s, got {analysis_dur:.1f}s. "
-            f"Check if resampling processed the full file."
+            f"Analysis audio duration mismatch: expected {expected_dur:.1f}s, got {analysis_dur:.1f}s "
+            f"(strategy={resample_strategy}). Check if resampling processed the full file."
+        )
+        mismatch_suggestions = [
+            "The source recording may have variable bitrate or truncated frames.",
+            "Converting the file to WAV/FLAC outside of SpectroSampler can stabilise duration.",
+        ]
+        retry_strategy = None
+        if resample_strategy != "soxr":
+            mismatch_suggestions.insert(
+                1, "Retry using the alternate SOXR resampler to force a high precision resample."
+            )
+            retry_strategy = "soxr"
+        warnings.append(
+            {
+                "code": "analysis_duration_mismatch",
+                "message": "The analysis copy does not match the original file duration.",
+                "expected_duration": expected_dur,
+                "analysis_duration": analysis_dur,
+                "difference": analysis_dur - expected_dur,
+                "resample_strategy": resample_strategy,
+                "retry_strategy": retry_strategy,
+                "suggestions": mismatch_suggestions,
+            }
         )
 
     # Select detectors
@@ -614,6 +652,7 @@ def process_file(
         "detector_stats": {},
         "audio_info": audio_info,
         "settings": settings.__dict__,
+        "warnings": warnings,
     }
 
 

@@ -128,6 +128,7 @@ spectrosampler-gui --version          Show version and exit
 - Optionally enter a per-sample Name in the info table; it slots into the filename slug between the index and time range.
 - Only enabled & checked samples in the info table are exported. Default format preserves original audio (no re-encode if parameters match).
 - Exported filenames are sanitized automatically, so reserved characters and Windows device names never block writing files on Windows, macOS, or Linux.
+- If FFmpeg encounters an error during export, SpectroSampler surfaces a detailed dialog with the exact command that failed plus actionable suggestions (verify source paths, check diagnostics, confirm folder permissions) so you can correct the issue and retry immediately.
 
 ---
 
@@ -197,6 +198,7 @@ Files are JSON; you can inspect or version-control them. Autosaves keep the last
 
 - **FFmpeg not found** – Ensure it is on PATH (`ffmpeg -version`).
 - **Audio file won’t open** – The error dialog spells out the cause (missing file, unsupported codec, permissions, or FFmpeg availability) and suggested fixes; follow the guidance or convert the file to WAV/FLAC.
+- **Analysis duration mismatch warning** – Use the dialog’s **Try alternate resample** button to rerun detection with the high-precision SOXR resampler. If the warning persists, convert the source file to WAV/FLAC and retry.
 - **Need system details for support?** – Open Help → Diagnostics to copy FFmpeg, audio device, and environment details into bug reports.
 - **`webrtcvad` build errors (Windows)** – Install Visual Studio Build Tools or skip VAD.
 - **GUI feels sluggish on big files** – Lower refresh rate (View → Limit UI Refresh Rate) or disable disabled-sample display.

@@ -44,6 +44,7 @@ class ProcessingSettings:
         "lp",
         "nr",
         "analysis_sr",
+        "analysis_resample_strategy",
         "analysis_mid_only",
         "spectrogram",
         "spectro_size",
@@ -106,6 +107,7 @@ class ProcessingSettings:
         self.lp: float | None = kwargs.get("lp", 20000.0)
         self.nr: float = kwargs.get("nr", 12.0)
         self.analysis_sr: int = kwargs.get("analysis_sr", 16000)
+        self.analysis_resample_strategy: str = kwargs.get("analysis_resample_strategy", "default")
         self.analysis_mid_only: bool = kwargs.get("analysis_mid_only", False)
 
         # Spectrograms/reports
@@ -353,6 +355,16 @@ class ProcessingSettings:
                 ValidationIssue("analysis_sr", "Analysis sample rate must be greater than zero.")
             )
 
+        strategy = (self.analysis_resample_strategy or "").strip().lower()
+        if strategy not in {"default", "soxr"}:
+            issues.append(
+                ValidationIssue(
+                    "analysis_resample_strategy",
+                    "Analysis resample strategy must be 'default' or 'soxr'.",
+                )
+            )
+        else:
+            self.analysis_resample_strategy = strategy
         chunk_sec_val = _coerce_float("chunk_sec", self.chunk_sec)
         if chunk_sec_val is not None and chunk_sec_val <= 0.0:
             issues.append(

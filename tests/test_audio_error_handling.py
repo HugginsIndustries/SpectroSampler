@@ -42,7 +42,26 @@ def test_describe_audio_load_error_prompts_ffmpeg_install(monkeypatch: pytest.Mo
 
     monkeypatch.setattr(audio_io, "check_ffmpeg", lambda: False)
 
-    advice = audio_io.describe_audio_load_error(Path("clip.wav"), audio_io.FFmpegError("failure"))
+    advice = audio_io.describe_audio_load_error(
+        Path("clip.wav"), audio_io.FFmpegError(["ffmpeg"], "failure")
+    )
 
     assert "ffmpeg" in advice.reason.lower()
     assert "install" in advice.suggestion.lower()
+
+
+def test_describe_ffmpeg_failure_provides_actionable_hints() -> None:
+    """FFmpeg failure summaries should include contextual remediation hints."""
+
+    error = audio_io.FFmpegError(
+        ["ffmpeg", "-i", "missing.wav"],
+        "ffmpeg command failed",
+        stderr="missing.wav: No such file or directory",
+        exit_code=1,
+        context="Export sample",
+    )
+
+    summary, hints = audio_io.describe_ffmpeg_failure(error)
+
+    assert "export sample" in summary.lower()
+    assert any("verify the source audio" in hint.lower() for hint in hints)

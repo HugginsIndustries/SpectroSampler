@@ -28,7 +28,11 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
-from spectrosampler.audio_io import FFmpegError, describe_audio_load_error
+from spectrosampler.audio_io import (
+    FFmpegError,
+    describe_audio_load_error,
+    describe_ffmpeg_failure,
+)
 from spectrosampler.detectors.base import Segment
 from spectrosampler.gui.autosave import AutoSaveManager
 from spectrosampler.gui.detection_manager import DetectionManager
@@ -78,6 +82,9 @@ class MainWindow(QMainWindow):
         # Pipeline wrapper
         self._pipeline_wrapper: PipelineWrapper | None = None
         self._current_audio_path: Path | None = None
+        self._active_analysis_resample_strategy: str = "default"
+        self._pending_analysis_resample_strategy: str | None = None
+        self._last_analysis_warning: dict[str, Any] | None = None
 
         # Project management
         self._project_path: Path | None = None
@@ -1013,7 +1020,10 @@ class MainWindow(QMainWindow):
 
         try:
             # Create pipeline wrapper
+            self._active_analysis_resample_strategy = "default"
+            self._pending_analysis_resample_strategy = None
             settings = self._settings_panel.get_settings()
+            settings.analysis_resample_strategy = self._active_analysis_resample_strategy
             # Initialize export settings
             settings.export_pre_pad_ms = self._export_pre_pad_ms
             settings.export_post_pad_ms = self._export_post_pad_ms
@@ -1959,7 +1969,16 @@ class MainWindow(QMainWindow):
 
         # Update pipeline wrapper settings
         if self._pipeline_wrapper:
-            self._pipeline_wrapper.settings = self._settings_panel.get_settings()
+            updated_settings = self._settings_panel.get_settings()
+            strategy = (
+                self._pending_analysis_resample_strategy
+                or self._active_analysis_resample_strategy
+                or "default"
+            )
+            updated_settings.analysis_resample_strategy = strategy
+            self._active_analysis_resample_strategy = strategy
+            self._pending_analysis_resample_strategy = None
+            self._pipeline_wrapper.settings = updated_settings
             # Update export settings
             self._pipeline_wrapper.settings.export_pre_pad_ms = self._export_pre_pad_ms
             self._pipeline_wrapper.settings.export_post_pad_ms = self._export_post_pad_ms
@@ -2170,15 +2189,38 @@ class MainWindow(QMainWindow):
         self._project_modified = True
         self._update_window_title()
 
-    def _on_detection_error(self, error: str) -> None:
+        warnings = result.get("warnings") or []
+        handled_warnings = False
+        for warning in warnings:
+            if isinstance(warning, dict) and warning.get("code") == "analysis_duration_mismatch":
+                self._last_analysis_warning = warning
+                self._handle_analysis_duration_warning(warning)
+                handled_warnings = True
+                break
+        if not handled_warnings:
+            self._last_analysis_warning = None
+
+    def _on_detection_error(self, error: object) -> None:
         """Handle detection error.
 
         Args:
-            error: Error message.
+            error: Error details (message or exception).
         """
         # Hide loading screen
         self._loading_screen.hide_overlay()
-        QMessageBox.critical(self, "Detection Error", f"Failed to detect samples:\n{error}")
+        self._status_label.setText("Detection failed")
+
+        if isinstance(error, BaseException):
+            logger.error("Detection error: %s", error, exc_info=error)
+        else:
+            logger.error("Detection error: %s", error)
+
+        if isinstance(error, FFmpegError):
+            self._show_ffmpeg_failure_dialog("Detection Error", error)
+            return
+
+        message = str(error) if isinstance(error, BaseException) else str(error)
+        QMessageBox.critical(self, "Detection Error", f"Failed to detect samples:\n{message}")
 
     def _on_settings_changed(self) -> None:
         """Handle settings change."""
@@ -3973,7 +4015,12 @@ class MainWindow(QMainWindow):
                 self._status_label.setText(f"Exported {count} samples")
             except (FFmpegError, OSError, ValueError, RuntimeError) as e:
                 logger.error("Failed to export samples: %s", e, exc_info=e)
-                QMessageBox.critical(self, "Export Error", f"Failed to export samples:\n{str(e)}")
+                if isinstance(e, FFmpegError):
+                    self._show_ffmpeg_failure_dialog("Export Error", e)
+                else:
+                    QMessageBox.critical(
+                        self, "Export Error", f"Failed to export samples:\n{str(e)}"
+                    )
 
     def _on_about(self) -> None:
         """Handle about action."""
@@ -3996,6 +4043,96 @@ class MainWindow(QMainWindow):
                 self._status_label.setText("Verbose Log: ON" if enabled else "Verbose Log: OFF")
         except (AttributeError, ValueError, RuntimeError) as e:
             logger.error("Failed to toggle verbose log: %s", e, exc_info=e)
+
+    def _show_ffmpeg_failure_dialog(self, title: str, error: FFmpegError) -> None:
+        """Present an actionable FFmpeg failure dialog with remediation guidance."""
+
+        summary, suggestions = describe_ffmpeg_failure(error)
+        bullet_lines = "\n".join(f"• {hint}" for hint in suggestions)
+
+        message = QMessageBox(self)
+        message.setIcon(QMessageBox.Critical)
+        message.setWindowTitle(title)
+        message.setText(summary)
+
+        informative_parts = [
+            f"Command:\n{error.command_summary}",
+        ]
+        if bullet_lines:
+            informative_parts.append("Suggested fixes:")
+            informative_parts.append(bullet_lines)
+
+        message.setInformativeText("\n\n".join(informative_parts))
+        detail_text = error.stderr or error.stdout or "No additional FFmpeg output was produced."
+        message.setDetailedText(detail_text)
+        message.exec()
+
+    def _handle_analysis_duration_warning(self, warning: dict[str, Any]) -> None:
+        """Surface actionable guidance when the analysis resample duration mismatches."""
+
+        expected_raw = warning.get("expected_duration")
+        actual_raw = warning.get("analysis_duration")
+        diff_raw = warning.get("difference")
+        resample_strategy = warning.get("resample_strategy", "default")
+        retry_strategy = warning.get("retry_strategy")
+        suggestions = warning.get("suggestions") or []
+
+        expected = float(expected_raw) if isinstance(expected_raw, (int, float)) else None
+        actual = float(actual_raw) if isinstance(actual_raw, (int, float)) else None
+        difference = float(diff_raw) if isinstance(diff_raw, (int, float)) else None
+
+        expected_txt = f"{expected:.1f}s" if expected is not None else "unknown"
+        actual_txt = f"{actual:.1f}s" if actual is not None else "unknown"
+        if difference is not None:
+            direction = "longer" if difference > 0 else "shorter"
+            diff_txt = f"{abs(difference):.1f}s {direction}"
+        else:
+            diff_txt = "unknown difference"
+
+        dialog = QMessageBox(self)
+        dialog.setIcon(QMessageBox.Warning)
+        dialog.setWindowTitle("Analysis Duration Warning")
+        dialog.setText(
+            "The analysis copy of this recording does not match the original duration.\n"
+            f"Expected {expected_txt}, but the analysis file measured {actual_txt} "
+            f"({diff_txt})."
+        )
+
+        info_parts: list[str] = [
+            f"Resample strategy used: {resample_strategy or 'default'}",
+        ]
+        if suggestions:
+            bullet_lines = "\n".join(f"• {hint}" for hint in suggestions)
+            info_parts.append("Likely causes or fixes:")
+            info_parts.append(bullet_lines)
+        dialog.setInformativeText("\n\n".join(info_parts))
+
+        details_lines = [
+            f"Expected duration: {expected_txt}",
+            f"Measured analysis duration: {actual_txt}",
+            f"Difference: {diff_txt}",
+            f"Strategy: {resample_strategy}",
+        ]
+        dialog.setDetailedText("\n".join(details_lines))
+
+        retry_button = None
+        if retry_strategy:
+            retry_button = dialog.addButton(
+                "Try alternate resample", QMessageBox.ButtonRole.AcceptRole
+            )
+        dismiss_button = dialog.addButton("Dismiss", QMessageBox.ButtonRole.RejectRole)
+        dialog.setDefaultButton(dismiss_button)
+        dialog.exec()
+
+        self._status_label.setText("Analysis duration mismatch detected")
+
+        if retry_strategy and dialog.clickedButton() == retry_button:
+            if self._detection_manager.is_processing():
+                logger.warning("Cannot retry analysis while detection is still running.")
+                return
+            logger.info("Retrying detection with alternate resample strategy '%s'.", retry_strategy)
+            self._pending_analysis_resample_strategy = retry_strategy
+            self._on_detect_samples()
 
     def _push_undo_state(self) -> None:
         """Push current segments state to undo stack."""

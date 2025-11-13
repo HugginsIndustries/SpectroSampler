@@ -10,6 +10,7 @@ os.environ.setdefault("QT_QPA_PLATFORM", "offscreen")
 import pytest
 from PySide6.QtWidgets import QApplication
 
+from spectrosampler.audio_io import FFmpegError
 from spectrosampler.detectors.base import Segment
 from spectrosampler.gui.main_window import MainWindow
 
@@ -172,6 +173,36 @@ def test_player_toggle_updates_splitter_sizes():
     assert restored_sizes[0] > 0
     assert restored_sizes[1] == sizes[1]
     assert restored_sizes[2] > 0
+
+    window.deleteLater()
+    app.processEvents()
+
+
+def test_detection_error_routes_ffmpeg_dialog(monkeypatch):
+    app = _ensure_qapp()
+    window = MainWindow()
+
+    captured = {}
+
+    def fake_dialog(title: str, error: FFmpegError) -> None:
+        captured["title"] = title
+        captured["error"] = error
+
+    monkeypatch.setattr(window, "_show_ffmpeg_failure_dialog", fake_dialog)
+
+    err = FFmpegError(
+        ["ffmpeg", "-i", "input.wav"],
+        "ffmpeg failed",
+        stderr="simulated failure",
+        context="Detect samples",
+    )
+
+    window._on_detection_error(err)
+    app.processEvents()
+
+    assert captured["title"] == "Detection Error"
+    assert captured["error"] is err
+    assert window._status_label.text() == "Detection failed"
 
     window.deleteLater()
     app.processEvents()

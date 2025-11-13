@@ -2,7 +2,7 @@
   "version": "1.0",
   "spectrosampler_version": "0.1.0",
   "created": "2025-11-06T01:32:00.700707Z",
-  "modified": "2025-11-13T13:24:07.740285+00:00",
+  "modified": "2025-11-13T20:29:40.520089+00:00",
   "audio_path": "C:\\dev\\SamplePacker\\recordings\\field.WAV",
   "segments": [
     {
@@ -282,6 +282,17 @@
       }
     },
     {
+      "start": 1100.256,
+      "end": 1100.384,
+      "detector": "transient_flux",
+      "score": 1.3741728812387881,
+      "attrs": {
+        "raw_start": 1100.256,
+        "raw_end": 1100.384,
+        "enabled": true
+      }
+    },
+    {
       "start": 1118.7,
       "end": 1120.47,
       "detector": "voice_vad",
@@ -315,6 +326,17 @@
       }
     },
     {
+      "start": 1158.112,
+      "end": 1158.24,
+      "detector": "transient_flux",
+      "score": 1.2197482653469547,
+      "attrs": {
+        "raw_start": 1158.112,
+        "raw_end": 1158.24,
+        "enabled": true
+      }
+    },
+    {
       "start": 1166.82,
       "end": 1167.69,
       "detector": "voice_vad",
@@ -333,6 +355,17 @@
       "attrs": {
         "raw_start": 1185.1499999999999,
         "raw_end": 1185.6,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1188.608,
+      "end": 1188.736,
+      "detector": "transient_flux",
+      "score": 1.796327921382884,
+      "attrs": {
+        "raw_start": 1188.608,
+        "raw_end": 1188.736,
         "enabled": true
       }
     },
@@ -377,6 +410,17 @@
       "attrs": {
         "raw_start": 1228.56,
         "raw_end": 1229.19,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1237.472,
+      "end": 1237.6000000000001,
+      "detector": "transient_flux",
+      "score": 0.8327457119928902,
+      "attrs": {
+        "raw_start": 1237.472,
+        "raw_end": 1237.6000000000001,
         "enabled": true
       }
     },
@@ -447,6 +491,17 @@
       }
     },
     {
+      "start": 1273.824,
+      "end": 1273.952,
+      "detector": "transient_flux",
+      "score": 1.00502730423644,
+      "attrs": {
+        "raw_start": 1273.824,
+        "raw_end": 1273.952,
+        "enabled": true
+      }
+    },
+    {
       "start": 1277.25,
       "end": 1277.76,
       "detector": "voice_vad",
@@ -454,6 +509,17 @@
       "attrs": {
         "raw_start": 1277.25,
         "raw_end": 1277.76,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1281.984,
+      "end": 1282.112,
+      "detector": "transient_flux",
+      "score": 1.1258989752830204,
+      "attrs": {
+        "raw_start": 1281.984,
+        "raw_end": 1282.112,
         "enabled": true
       }
     },
@@ -480,6 +546,28 @@
       }
     },
     {
+      "start": 1311.776,
+      "end": 1311.936,
+      "detector": "transient_flux",
+      "score": 1.8348688419665795,
+      "attrs": {
+        "raw_start": 1311.776,
+        "raw_end": 1311.936,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1314.432,
+      "end": 1314.56,
+      "detector": "transient_flux",
+      "score": 1.5395712290239199,
+      "attrs": {
+        "raw_start": 1314.432,
+        "raw_end": 1314.56,
+        "enabled": true
+      }
+    },
+    {
       "start": 1314.93,
       "end": 1315.8899999999999,
       "detector": "voice_vad",
@@ -487,6 +575,17 @@
       "attrs": {
         "raw_start": 1314.93,
         "raw_end": 1315.8899999999999,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1323.488,
+      "end": 1323.616,
+      "detector": "transient_flux",
+      "score": 1.430992586200453,
+      "attrs": {
+        "raw_start": 1323.488,
+        "raw_end": 1323.616,
         "enabled": true
       }
     },
@@ -535,6 +634,50 @@
       }
     },
     {
+      "start": 1356.736,
+      "end": 1356.864,
+      "detector": "transient_flux",
+      "score": 2.0858409334328285,
+      "attrs": {
+        "raw_start": 1356.736,
+        "raw_end": 1356.864,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1359.712,
+      "end": 1359.84,
+      "detector": "transient_flux",
+      "score": 1.1843287140827572,
+      "attrs": {
+        "raw_start": 1359.712,
+        "raw_end": 1359.84,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1362.496,
+      "end": 1362.624,
+      "detector": "transient_flux",
+      "score": 1.2701983092402795,
+      "attrs": {
+        "raw_start": 1362.496,
+        "raw_end": 1362.624,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1372.384,
+      "end": 1372.512,
+      "detector": "transient_flux",
+      "score": 1.138824826638526,
+      "attrs": {
+        "raw_start": 1372.384,
+        "raw_end": 1372.512,
+        "enabled": true
+      }
+    },
+    {
       "start": 1375.62,
       "end": 1376.1299999999999,
       "detector": "voice_vad",
@@ -542,6 +685,28 @@
       "attrs": {
         "raw_start": 1375.62,
         "raw_end": 1376.1299999999999,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1377.2160000000001,
+      "end": 1377.344,
+      "detector": "transient_flux",
+      "score": 1.6488055259965901,
+      "attrs": {
+        "raw_start": 1377.2160000000001,
+        "raw_end": 1377.344,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1381.4080000000001,
+      "end": 1381.536,
+      "detector": "transient_flux",
+      "score": 1.3202668914998354,
+      "attrs": {
+        "raw_start": 1381.4080000000001,
+        "raw_end": 1381.536,
         "enabled": true
       }
     },
@@ -568,6 +733,83 @@
       }
     },
     {
+      "start": 1421.952,
+      "end": 1422.08,
+      "detector": "transient_flux",
+      "score": 1.6807274172359674,
+      "attrs": {
+        "raw_start": 1421.952,
+        "raw_end": 1422.08,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1435.584,
+      "end": 1435.712,
+      "detector": "transient_flux",
+      "score": 1.3638179128227153,
+      "attrs": {
+        "raw_start": 1435.584,
+        "raw_end": 1435.712,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1441.6000000000001,
+      "end": 1441.728,
+      "detector": "transient_flux",
+      "score": 1.0500665336572201,
+      "attrs": {
+        "raw_start": 1441.6000000000001,
+        "raw_end": 1441.728,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1446.848,
+      "end": 1446.976,
+      "detector": "transient_flux",
+      "score": 1.703076521730137,
+      "attrs": {
+        "raw_start": 1446.848,
+        "raw_end": 1446.976,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1448.128,
+      "end": 1448.256,
+      "detector": "transient_flux",
+      "score": 2.4941710230164644,
+      "attrs": {
+        "raw_start": 1448.128,
+        "raw_end": 1448.256,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1461.056,
+      "end": 1461.184,
+      "detector": "transient_flux",
+      "score": 2.8192034818530574,
+      "attrs": {
+        "raw_start": 1461.056,
+        "raw_end": 1461.184,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1467.008,
+      "end": 1467.136,
+      "detector": "transient_flux",
+      "score": 1.6485252522202138,
+      "attrs": {
+        "raw_start": 1467.008,
+        "raw_end": 1467.136,
+        "enabled": true
+      }
+    },
+    {
       "start": 1476.45,
       "end": 1476.87,
       "detector": "voice_vad",
@@ -575,6 +817,28 @@
       "attrs": {
         "raw_start": 1476.45,
         "raw_end": 1476.87,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1481.888,
+      "end": 1482.016,
+      "detector": "transient_flux",
+      "score": 1.9977919281488314,
+      "attrs": {
+        "raw_start": 1481.888,
+        "raw_end": 1482.016,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1484.576,
+      "end": 1484.704,
+      "detector": "transient_flux",
+      "score": 1.2246120747800544,
+      "attrs": {
+        "raw_start": 1484.576,
+        "raw_end": 1484.704,
         "enabled": true
       }
     },
@@ -590,6 +854,17 @@
       }
     },
     {
+      "start": 1513.536,
+      "end": 1513.664,
+      "detector": "transient_flux",
+      "score": 1.6020694627020673,
+      "attrs": {
+        "raw_start": 1513.536,
+        "raw_end": 1513.664,
+        "enabled": true
+      }
+    },
+    {
       "start": 1513.71,
       "end": 1514.1299999999999,
       "detector": "voice_vad",
@@ -597,6 +872,17 @@
       "attrs": {
         "raw_start": 1513.71,
         "raw_end": 1514.1299999999999,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1526.496,
+      "end": 1526.624,
+      "detector": "transient_flux",
+      "score": 1.4892889091721762,
+      "attrs": {
+        "raw_start": 1526.496,
+        "raw_end": 1526.624,
         "enabled": true
       }
     },
@@ -612,6 +898,28 @@
       }
     },
     {
+      "start": 1531.7440000000001,
+      "end": 1531.872,
+      "detector": "transient_flux",
+      "score": 2.6609484432132247,
+      "attrs": {
+        "raw_start": 1531.7440000000001,
+        "raw_end": 1531.872,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1536.032,
+      "end": 1536.16,
+      "detector": "transient_flux",
+      "score": 1.4470453780822798,
+      "attrs": {
+        "raw_start": 1536.032,
+        "raw_end": 1536.16,
+        "enabled": true
+      }
+    },
+    {
       "start": 1555.6499999999999,
       "end": 1556.07,
       "detector": "voice_vad",
@@ -623,6 +931,17 @@
       }
     },
     {
+      "start": 1556.384,
+      "end": 1556.544,
+      "detector": "transient_flux",
+      "score": 1.4861788263654632,
+      "attrs": {
+        "raw_start": 1556.384,
+        "raw_end": 1556.544,
+        "enabled": true
+      }
+    },
+    {
       "start": 1561.77,
       "end": 1562.28,
       "detector": "voice_vad",
@@ -630,6 +949,17 @@
       "attrs": {
         "raw_start": 1561.77,
         "raw_end": 1562.28,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1563.808,
+      "end": 1563.936,
+      "detector": "transient_flux",
+      "score": 1.7978530850868943,
+      "attrs": {
+        "raw_start": 1563.808,
+        "raw_end": 1563.936,
         "enabled": true
       }
     },
@@ -689,6 +1019,17 @@
       }
     },
     {
+      "start": 1598.848,
+      "end": 1598.976,
+      "detector": "transient_flux",
+      "score": 2.132057946601815,
+      "attrs": {
+        "raw_start": 1598.848,
+        "raw_end": 1598.976,
+        "enabled": true
+      }
+    },
+    {
       "start": 1603.8,
       "end": 1604.25,
       "detector": "voice_vad",
@@ -722,6 +1063,83 @@
       }
     },
     {
+      "start": 1645.824,
+      "end": 1645.952,
+      "detector": "transient_flux",
+      "score": 1.3359698916930443,
+      "attrs": {
+        "raw_start": 1645.824,
+        "raw_end": 1645.952,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1650.464,
+      "end": 1650.656,
+      "detector": "transient_flux",
+      "score": 1.6676409901095393,
+      "attrs": {
+        "raw_start": 1650.464,
+        "raw_end": 1650.656,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1652.096,
+      "end": 1652.224,
+      "detector": "transient_flux",
+      "score": 1.3017333213002917,
+      "attrs": {
+        "raw_start": 1652.096,
+        "raw_end": 1652.224,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1654.208,
+      "end": 1654.336,
+      "detector": "transient_flux",
+      "score": 2.0393121120965847,
+      "attrs": {
+        "raw_start": 1654.208,
+        "raw_end": 1654.336,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1658.592,
+      "end": 1658.72,
+      "detector": "transient_flux",
+      "score": 2.5164831465603603,
+      "attrs": {
+        "raw_start": 1658.592,
+        "raw_end": 1658.72,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1661.28,
+      "end": 1661.4080000000001,
+      "detector": "transient_flux",
+      "score": 2.581260225036658,
+      "attrs": {
+        "raw_start": 1661.28,
+        "raw_end": 1661.4080000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1675.296,
+      "end": 1675.424,
+      "detector": "transient_flux",
+      "score": 2.9944518728329523,
+      "attrs": {
+        "raw_start": 1675.296,
+        "raw_end": 1675.424,
+        "enabled": true
+      }
+    },
+    {
       "start": 1677.72,
       "end": 1678.23,
       "detector": "voice_vad",
@@ -729,6 +1147,105 @@
       "attrs": {
         "raw_start": 1677.72,
         "raw_end": 1678.23,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1702.72,
+      "end": 1702.848,
+      "detector": "transient_flux",
+      "score": 1.5253266588572085,
+      "attrs": {
+        "raw_start": 1702.72,
+        "raw_end": 1702.848,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1714.592,
+      "end": 1714.752,
+      "detector": "transient_flux",
+      "score": 3.312838565172702,
+      "attrs": {
+        "raw_start": 1714.592,
+        "raw_end": 1714.752,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1723.008,
+      "end": 1723.136,
+      "detector": "transient_flux",
+      "score": 2.0961655643494517,
+      "attrs": {
+        "raw_start": 1723.008,
+        "raw_end": 1723.136,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1725.088,
+      "end": 1725.248,
+      "detector": "transient_flux",
+      "score": 1.9339868213552003,
+      "attrs": {
+        "raw_start": 1725.088,
+        "raw_end": 1725.248,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1731.968,
+      "end": 1732.096,
+      "detector": "transient_flux",
+      "score": 1.8167241379056087,
+      "attrs": {
+        "raw_start": 1731.968,
+        "raw_end": 1732.096,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1740.032,
+      "end": 1740.16,
+      "detector": "transient_flux",
+      "score": 3.0670803622288747,
+      "attrs": {
+        "raw_start": 1740.032,
+        "raw_end": 1740.16,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1743.904,
+      "end": 1744.032,
+      "detector": "transient_flux",
+      "score": 1.2509312311182774,
+      "attrs": {
+        "raw_start": 1743.904,
+        "raw_end": 1744.032,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1745.536,
+      "end": 1745.664,
+      "detector": "transient_flux",
+      "score": 2.2049010573720857,
+      "attrs": {
+        "raw_start": 1745.536,
+        "raw_end": 1745.664,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1747.1680000000001,
+      "end": 1747.296,
+      "detector": "transient_flux",
+      "score": 2.8163024106596843,
+      "attrs": {
+        "raw_start": 1747.1680000000001,
+        "raw_end": 1747.296,
         "enabled": true
       }
     },
@@ -744,6 +1261,105 @@
       }
     },
     {
+      "start": 1756.544,
+      "end": 1756.672,
+      "detector": "transient_flux",
+      "score": 2.6514108637527225,
+      "attrs": {
+        "raw_start": 1756.544,
+        "raw_end": 1756.672,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1775.424,
+      "end": 1775.5520000000001,
+      "detector": "transient_flux",
+      "score": 2.90419090899263,
+      "attrs": {
+        "raw_start": 1775.424,
+        "raw_end": 1775.5520000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1780.288,
+      "end": 1780.416,
+      "detector": "transient_flux",
+      "score": 1.3325555662939257,
+      "attrs": {
+        "raw_start": 1780.288,
+        "raw_end": 1780.416,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1785.664,
+      "end": 1785.7920000000001,
+      "detector": "transient_flux",
+      "score": 2.3568652212450236,
+      "attrs": {
+        "raw_start": 1785.664,
+        "raw_end": 1785.7920000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1790.88,
+      "end": 1791.008,
+      "detector": "transient_flux",
+      "score": 1.4250178680701786,
+      "attrs": {
+        "raw_start": 1790.88,
+        "raw_end": 1791.008,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1818.176,
+      "end": 1818.304,
+      "detector": "transient_flux",
+      "score": 2.4093716015045796,
+      "attrs": {
+        "raw_start": 1818.176,
+        "raw_end": 1818.304,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1823.52,
+      "end": 1823.6480000000001,
+      "detector": "transient_flux",
+      "score": 1.9330237953881944,
+      "attrs": {
+        "raw_start": 1823.52,
+        "raw_end": 1823.6480000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1825.184,
+      "end": 1825.3120000000001,
+      "detector": "transient_flux",
+      "score": 2.2753425300907066,
+      "attrs": {
+        "raw_start": 1825.184,
+        "raw_end": 1825.3120000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1827.872,
+      "end": 1828.0,
+      "detector": "transient_flux",
+      "score": 1.654901425895469,
+      "attrs": {
+        "raw_start": 1827.872,
+        "raw_end": 1828.0,
+        "enabled": true
+      }
+    },
+    {
       "start": 1838.07,
       "end": 1838.49,
       "detector": "voice_vad",
@@ -751,6 +1367,380 @@
       "attrs": {
         "raw_start": 1838.07,
         "raw_end": 1838.49,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1838.08,
+      "end": 1838.24,
+      "detector": "transient_flux",
+      "score": 1.7361044375418306,
+      "attrs": {
+        "raw_start": 1838.08,
+        "raw_end": 1838.24,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1841.088,
+      "end": 1841.2160000000001,
+      "detector": "transient_flux",
+      "score": 2.610390213137053,
+      "attrs": {
+        "raw_start": 1841.088,
+        "raw_end": 1841.2160000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1848.384,
+      "end": 1848.608,
+      "detector": "transient_flux",
+      "score": 1.1808197042781496,
+      "attrs": {
+        "raw_start": 1848.384,
+        "raw_end": 1848.608,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1852.224,
+      "end": 1852.512,
+      "detector": "transient_flux",
+      "score": 1.2394803437804849,
+      "attrs": {
+        "raw_start": 1852.224,
+        "raw_end": 1852.512,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1867.6480000000001,
+      "end": 1867.8400000000001,
+      "detector": "transient_flux",
+      "score": 2.4018379966608245,
+      "attrs": {
+        "raw_start": 1867.6480000000001,
+        "raw_end": 1867.8400000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1870.912,
+      "end": 1871.136,
+      "detector": "transient_flux",
+      "score": 2.414920779032,
+      "attrs": {
+        "raw_start": 1870.912,
+        "raw_end": 1871.136,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1877.0240000000001,
+      "end": 1877.184,
+      "detector": "transient_flux",
+      "score": 3.3658820135069956,
+      "attrs": {
+        "raw_start": 1877.0240000000001,
+        "raw_end": 1877.184,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1898.144,
+      "end": 1898.272,
+      "detector": "transient_flux",
+      "score": 2.993169223370357,
+      "attrs": {
+        "raw_start": 1898.144,
+        "raw_end": 1898.272,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1915.2,
+      "end": 1915.328,
+      "detector": "transient_flux",
+      "score": 3.797816036888622,
+      "attrs": {
+        "raw_start": 1915.2,
+        "raw_end": 1915.328,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1940.768,
+      "end": 1940.896,
+      "detector": "transient_flux",
+      "score": 1.2231809990013944,
+      "attrs": {
+        "raw_start": 1940.768,
+        "raw_end": 1940.896,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1945.536,
+      "end": 1945.664,
+      "detector": "transient_flux",
+      "score": 3.263651766116079,
+      "attrs": {
+        "raw_start": 1945.536,
+        "raw_end": 1945.664,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1947.392,
+      "end": 1947.616,
+      "detector": "transient_flux",
+      "score": 3.3756567217276925,
+      "attrs": {
+        "raw_start": 1947.392,
+        "raw_end": 1947.616,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1952.576,
+      "end": 1952.704,
+      "detector": "transient_flux",
+      "score": 4.6476283795645985,
+      "attrs": {
+        "raw_start": 1952.576,
+        "raw_end": 1952.704,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1957.664,
+      "end": 1957.7920000000001,
+      "detector": "transient_flux",
+      "score": 2.309098297759157,
+      "attrs": {
+        "raw_start": 1957.664,
+        "raw_end": 1957.7920000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1970.336,
+      "end": 1970.464,
+      "detector": "transient_flux",
+      "score": 3.2046210325849027,
+      "attrs": {
+        "raw_start": 1970.336,
+        "raw_end": 1970.464,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1976.32,
+      "end": 1976.544,
+      "detector": "transient_flux",
+      "score": 1.1963796251884415,
+      "attrs": {
+        "raw_start": 1976.32,
+        "raw_end": 1976.544,
+        "enabled": true
+      }
+    },
+    {
+      "start": 1983.232,
+      "end": 1983.392,
+      "detector": "transient_flux",
+      "score": 1.6454240711524968,
+      "attrs": {
+        "raw_start": 1983.232,
+        "raw_end": 1983.392,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2000.672,
+      "end": 2000.864,
+      "detector": "transient_flux",
+      "score": 3.0924445582837063,
+      "attrs": {
+        "raw_start": 2000.672,
+        "raw_end": 2000.864,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2002.496,
+      "end": 2002.624,
+      "detector": "transient_flux",
+      "score": 1.4248572564174125,
+      "attrs": {
+        "raw_start": 2002.496,
+        "raw_end": 2002.624,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2008.576,
+      "end": 2008.832,
+      "detector": "transient_flux",
+      "score": 2.0766795275967906,
+      "attrs": {
+        "raw_start": 2008.576,
+        "raw_end": 2008.832,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2011.712,
+      "end": 2011.904,
+      "detector": "transient_flux",
+      "score": 1.507805669288394,
+      "attrs": {
+        "raw_start": 2011.712,
+        "raw_end": 2011.904,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2016.096,
+      "end": 2016.256,
+      "detector": "transient_flux",
+      "score": 1.920606430511215,
+      "attrs": {
+        "raw_start": 2016.096,
+        "raw_end": 2016.256,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2019.008,
+      "end": 2019.136,
+      "detector": "transient_flux",
+      "score": 1.309868360572208,
+      "attrs": {
+        "raw_start": 2019.008,
+        "raw_end": 2019.136,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2025.44,
+      "end": 2025.632,
+      "detector": "transient_flux",
+      "score": 1.5302145704312582,
+      "attrs": {
+        "raw_start": 2025.44,
+        "raw_end": 2025.632,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2029.536,
+      "end": 2029.728,
+      "detector": "transient_flux",
+      "score": 1.1888429116778338,
+      "attrs": {
+        "raw_start": 2029.536,
+        "raw_end": 2029.728,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2033.44,
+      "end": 2033.632,
+      "detector": "transient_flux",
+      "score": 4.016761371992864,
+      "attrs": {
+        "raw_start": 2033.44,
+        "raw_end": 2033.632,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2036.096,
+      "end": 2036.352,
+      "detector": "transient_flux",
+      "score": 2.7041916756739766,
+      "attrs": {
+        "raw_start": 2036.096,
+        "raw_end": 2036.352,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2040.864,
+      "end": 2040.992,
+      "detector": "transient_flux",
+      "score": 3.11800746188904,
+      "attrs": {
+        "raw_start": 2040.864,
+        "raw_end": 2040.992,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2044.0,
+      "end": 2044.128,
+      "detector": "transient_flux",
+      "score": 6.143615368546537,
+      "attrs": {
+        "raw_start": 2044.0,
+        "raw_end": 2044.128,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2045.3120000000001,
+      "end": 2045.44,
+      "detector": "transient_flux",
+      "score": 3.1156141841778533,
+      "attrs": {
+        "raw_start": 2045.3120000000001,
+        "raw_end": 2045.44,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2046.56,
+      "end": 2046.912,
+      "detector": "transient_flux",
+      "score": 1.2714188739756895,
+      "attrs": {
+        "raw_start": 2046.56,
+        "raw_end": 2046.912,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2053.216,
+      "end": 2053.344,
+      "detector": "transient_flux",
+      "score": 4.164624034983195,
+      "attrs": {
+        "raw_start": 2053.216,
+        "raw_end": 2053.344,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2055.328,
+      "end": 2055.488,
+      "detector": "transient_flux",
+      "score": 2.065205402185581,
+      "attrs": {
+        "raw_start": 2055.328,
+        "raw_end": 2055.488,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2071.648,
+      "end": 2071.776,
+      "detector": "transient_flux",
+      "score": 2.4907846823964337,
+      "attrs": {
+        "raw_start": 2071.648,
+        "raw_end": 2071.776,
         "enabled": true
       }
     },
@@ -766,6 +1756,17 @@
       }
     },
     {
+      "start": 2093.408,
+      "end": 2093.536,
+      "detector": "transient_flux",
+      "score": 2.833738485751394,
+      "attrs": {
+        "raw_start": 2093.408,
+        "raw_end": 2093.536,
+        "enabled": true
+      }
+    },
+    {
       "start": 2102.37,
       "end": 2102.8199999999997,
       "detector": "voice_vad",
@@ -773,6 +1774,83 @@
       "attrs": {
         "raw_start": 2102.37,
         "raw_end": 2102.8199999999997,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2105.504,
+      "end": 2105.632,
+      "detector": "transient_flux",
+      "score": 1.817510920623021,
+      "attrs": {
+        "raw_start": 2105.504,
+        "raw_end": 2105.632,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2170.1440000000002,
+      "end": 2170.272,
+      "detector": "transient_flux",
+      "score": 3.480180690220518,
+      "attrs": {
+        "raw_start": 2170.1440000000002,
+        "raw_end": 2170.272,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2214.176,
+      "end": 2214.304,
+      "detector": "transient_flux",
+      "score": 2.535909568701781,
+      "attrs": {
+        "raw_start": 2214.176,
+        "raw_end": 2214.304,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2217.056,
+      "end": 2217.184,
+      "detector": "transient_flux",
+      "score": 3.998598551682225,
+      "attrs": {
+        "raw_start": 2217.056,
+        "raw_end": 2217.184,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2220.544,
+      "end": 2220.672,
+      "detector": "transient_flux",
+      "score": 2.3192726453853916,
+      "attrs": {
+        "raw_start": 2220.544,
+        "raw_end": 2220.672,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2231.712,
+      "end": 2231.84,
+      "detector": "transient_flux",
+      "score": 2.2881779857342095,
+      "attrs": {
+        "raw_start": 2231.712,
+        "raw_end": 2231.84,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2249.664,
+      "end": 2249.792,
+      "detector": "transient_flux",
+      "score": 2.23140643325456,
+      "attrs": {
+        "raw_start": 2249.664,
+        "raw_end": 2249.792,
         "enabled": true
       }
     },
@@ -788,6 +1866,127 @@
       }
     },
     {
+      "start": 2323.936,
+      "end": 2324.096,
+      "detector": "transient_flux",
+      "score": 2.4587134890913473,
+      "attrs": {
+        "raw_start": 2323.936,
+        "raw_end": 2324.096,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2411.232,
+      "end": 2411.36,
+      "detector": "transient_flux",
+      "score": 1.6168101380440796,
+      "attrs": {
+        "raw_start": 2411.232,
+        "raw_end": 2411.36,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2430.112,
+      "end": 2430.2400000000002,
+      "detector": "transient_flux",
+      "score": 2.4880244826871283,
+      "attrs": {
+        "raw_start": 2430.112,
+        "raw_end": 2430.2400000000002,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2433.184,
+      "end": 2433.44,
+      "detector": "transient_flux",
+      "score": 1.1111515398970762,
+      "attrs": {
+        "raw_start": 2433.184,
+        "raw_end": 2433.44,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2435.456,
+      "end": 2435.584,
+      "detector": "transient_flux",
+      "score": 2.2884779675372378,
+      "attrs": {
+        "raw_start": 2435.456,
+        "raw_end": 2435.584,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2440.928,
+      "end": 2441.056,
+      "detector": "transient_flux",
+      "score": 2.1318471624286963,
+      "attrs": {
+        "raw_start": 2440.928,
+        "raw_end": 2441.056,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2451.392,
+      "end": 2451.584,
+      "detector": "transient_flux",
+      "score": 1.2348039431635327,
+      "attrs": {
+        "raw_start": 2451.392,
+        "raw_end": 2451.584,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2466.208,
+      "end": 2466.3360000000002,
+      "detector": "transient_flux",
+      "score": 1.121665188557523,
+      "attrs": {
+        "raw_start": 2466.208,
+        "raw_end": 2466.3360000000002,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2500.384,
+      "end": 2500.512,
+      "detector": "transient_flux",
+      "score": 2.4437496552936158,
+      "attrs": {
+        "raw_start": 2500.384,
+        "raw_end": 2500.512,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2515.136,
+      "end": 2515.264,
+      "detector": "transient_flux",
+      "score": 1.7720842631749374,
+      "attrs": {
+        "raw_start": 2515.136,
+        "raw_end": 2515.264,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2538.848,
+      "end": 2538.976,
+      "detector": "transient_flux",
+      "score": 2.1032061518663028,
+      "attrs": {
+        "raw_start": 2538.848,
+        "raw_end": 2538.976,
+        "enabled": true
+      }
+    },
+    {
       "start": 2584.44,
       "end": 2585.4,
       "detector": "voice_vad",
@@ -799,6 +1998,72 @@
       }
     },
     {
+      "start": 2656.128,
+      "end": 2656.256,
+      "detector": "transient_flux",
+      "score": 2.1062772952397673,
+      "attrs": {
+        "raw_start": 2656.128,
+        "raw_end": 2656.256,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2662.4,
+      "end": 2662.5280000000002,
+      "detector": "transient_flux",
+      "score": 2.127830991596884,
+      "attrs": {
+        "raw_start": 2662.4,
+        "raw_end": 2662.5280000000002,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2677.216,
+      "end": 2677.344,
+      "detector": "transient_flux",
+      "score": 2.145296215698464,
+      "attrs": {
+        "raw_start": 2677.216,
+        "raw_end": 2677.344,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2710.016,
+      "end": 2710.1440000000002,
+      "detector": "transient_flux",
+      "score": 1.7358553024814056,
+      "attrs": {
+        "raw_start": 2710.016,
+        "raw_end": 2710.1440000000002,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2738.976,
+      "end": 2739.1040000000003,
+      "detector": "transient_flux",
+      "score": 1.1944158556198303,
+      "attrs": {
+        "raw_start": 2738.976,
+        "raw_end": 2739.1040000000003,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2761.632,
+      "end": 2761.76,
+      "detector": "transient_flux",
+      "score": 5.974135293085121,
+      "attrs": {
+        "raw_start": 2761.632,
+        "raw_end": 2761.76,
+        "enabled": true
+      }
+    },
+    {
       "start": 2767.5,
       "end": 2767.95,
       "detector": "voice_vad",
@@ -806,6 +2071,556 @@
       "attrs": {
         "raw_start": 2767.5,
         "raw_end": 2767.95,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2769.792,
+      "end": 2769.92,
+      "detector": "transient_flux",
+      "score": 2.9882191367146396,
+      "attrs": {
+        "raw_start": 2769.792,
+        "raw_end": 2769.92,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2774.08,
+      "end": 2774.208,
+      "detector": "transient_flux",
+      "score": 2.632531746785244,
+      "attrs": {
+        "raw_start": 2774.08,
+        "raw_end": 2774.208,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2822.8160000000003,
+      "end": 2822.944,
+      "detector": "transient_flux",
+      "score": 2.101539831811022,
+      "attrs": {
+        "raw_start": 2822.8160000000003,
+        "raw_end": 2822.944,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2845.888,
+      "end": 2846.016,
+      "detector": "transient_flux",
+      "score": 3.279860794021922,
+      "attrs": {
+        "raw_start": 2845.888,
+        "raw_end": 2846.016,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2862.1440000000002,
+      "end": 2862.272,
+      "detector": "transient_flux",
+      "score": 2.859202054966597,
+      "attrs": {
+        "raw_start": 2862.1440000000002,
+        "raw_end": 2862.272,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2894.4320000000002,
+      "end": 2894.56,
+      "detector": "transient_flux",
+      "score": 2.186368725373563,
+      "attrs": {
+        "raw_start": 2894.4320000000002,
+        "raw_end": 2894.56,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2898.272,
+      "end": 2898.4320000000002,
+      "detector": "transient_flux",
+      "score": 2.794078715148629,
+      "attrs": {
+        "raw_start": 2898.272,
+        "raw_end": 2898.4320000000002,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2901.024,
+      "end": 2901.152,
+      "detector": "transient_flux",
+      "score": 2.208839372138392,
+      "attrs": {
+        "raw_start": 2901.024,
+        "raw_end": 2901.152,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2905.472,
+      "end": 2905.6,
+      "detector": "transient_flux",
+      "score": 2.696371319116953,
+      "attrs": {
+        "raw_start": 2905.472,
+        "raw_end": 2905.6,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2931.264,
+      "end": 2931.3920000000003,
+      "detector": "transient_flux",
+      "score": 3.3570493005632387,
+      "attrs": {
+        "raw_start": 2931.264,
+        "raw_end": 2931.3920000000003,
+        "enabled": true
+      }
+    },
+    {
+      "start": 2978.4320000000002,
+      "end": 2978.56,
+      "detector": "transient_flux",
+      "score": 3.2581755972894584,
+      "attrs": {
+        "raw_start": 2978.4320000000002,
+        "raw_end": 2978.56,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3003.072,
+      "end": 3003.2000000000003,
+      "detector": "transient_flux",
+      "score": 2.571572648846667,
+      "attrs": {
+        "raw_start": 3003.072,
+        "raw_end": 3003.2000000000003,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3040.736,
+      "end": 3040.864,
+      "detector": "transient_flux",
+      "score": 2.8950046931564244,
+      "attrs": {
+        "raw_start": 3040.736,
+        "raw_end": 3040.864,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3043.3920000000003,
+      "end": 3043.52,
+      "detector": "transient_flux",
+      "score": 1.947255354799834,
+      "attrs": {
+        "raw_start": 3043.3920000000003,
+        "raw_end": 3043.52,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3048.064,
+      "end": 3048.192,
+      "detector": "transient_flux",
+      "score": 2.327435946163371,
+      "attrs": {
+        "raw_start": 3048.064,
+        "raw_end": 3048.192,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3057.536,
+      "end": 3057.664,
+      "detector": "transient_flux",
+      "score": 3.490140817546565,
+      "attrs": {
+        "raw_start": 3057.536,
+        "raw_end": 3057.664,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3084.512,
+      "end": 3084.64,
+      "detector": "transient_flux",
+      "score": 3.1334130126126256,
+      "attrs": {
+        "raw_start": 3084.512,
+        "raw_end": 3084.64,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3090.9120000000003,
+      "end": 3091.04,
+      "detector": "transient_flux",
+      "score": 2.779937055476386,
+      "attrs": {
+        "raw_start": 3090.9120000000003,
+        "raw_end": 3091.04,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3092.096,
+      "end": 3092.224,
+      "detector": "transient_flux",
+      "score": 1.0552232601143035,
+      "attrs": {
+        "raw_start": 3092.096,
+        "raw_end": 3092.224,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3095.552,
+      "end": 3095.712,
+      "detector": "transient_flux",
+      "score": 2.220629259442656,
+      "attrs": {
+        "raw_start": 3095.552,
+        "raw_end": 3095.712,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3098.112,
+      "end": 3098.304,
+      "detector": "transient_flux",
+      "score": 1.6268204582882178,
+      "attrs": {
+        "raw_start": 3098.112,
+        "raw_end": 3098.304,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3100.352,
+      "end": 3100.544,
+      "detector": "transient_flux",
+      "score": 3.6567264189192485,
+      "attrs": {
+        "raw_start": 3100.352,
+        "raw_end": 3100.544,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3101.728,
+      "end": 3101.984,
+      "detector": "transient_flux",
+      "score": 2.4502967042898147,
+      "attrs": {
+        "raw_start": 3101.728,
+        "raw_end": 3101.984,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3103.5840000000003,
+      "end": 3103.808,
+      "detector": "transient_flux",
+      "score": 3.5601522885553503,
+      "attrs": {
+        "raw_start": 3103.5840000000003,
+        "raw_end": 3103.808,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3106.7200000000003,
+      "end": 3106.976,
+      "detector": "transient_flux",
+      "score": 4.892472015544501,
+      "attrs": {
+        "raw_start": 3106.7200000000003,
+        "raw_end": 3106.976,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3108.064,
+      "end": 3108.192,
+      "detector": "transient_flux",
+      "score": 3.3881534329568805,
+      "attrs": {
+        "raw_start": 3108.064,
+        "raw_end": 3108.192,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3110.944,
+      "end": 3111.168,
+      "detector": "transient_flux",
+      "score": 2.0215186011860315,
+      "attrs": {
+        "raw_start": 3110.944,
+        "raw_end": 3111.168,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3113.248,
+      "end": 3113.408,
+      "detector": "transient_flux",
+      "score": 2.4760467022323462,
+      "attrs": {
+        "raw_start": 3113.248,
+        "raw_end": 3113.408,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3116.192,
+      "end": 3116.32,
+      "detector": "transient_flux",
+      "score": 1.9606138536920588,
+      "attrs": {
+        "raw_start": 3116.192,
+        "raw_end": 3116.32,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3119.136,
+      "end": 3119.2960000000003,
+      "detector": "transient_flux",
+      "score": 1.9512756213838793,
+      "attrs": {
+        "raw_start": 3119.136,
+        "raw_end": 3119.2960000000003,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3120.416,
+      "end": 3120.544,
+      "detector": "transient_flux",
+      "score": 3.4381735235013378,
+      "attrs": {
+        "raw_start": 3120.416,
+        "raw_end": 3120.544,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3125.088,
+      "end": 3125.216,
+      "detector": "transient_flux",
+      "score": 2.2956825551073576,
+      "attrs": {
+        "raw_start": 3125.088,
+        "raw_end": 3125.216,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3127.1040000000003,
+      "end": 3127.232,
+      "detector": "transient_flux",
+      "score": 3.2705114466115166,
+      "attrs": {
+        "raw_start": 3127.1040000000003,
+        "raw_end": 3127.232,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3132.896,
+      "end": 3133.024,
+      "detector": "transient_flux",
+      "score": 4.971465427062715,
+      "attrs": {
+        "raw_start": 3132.896,
+        "raw_end": 3133.024,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3152.064,
+      "end": 3152.192,
+      "detector": "transient_flux",
+      "score": 3.2335682006450273,
+      "attrs": {
+        "raw_start": 3152.064,
+        "raw_end": 3152.192,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3154.688,
+      "end": 3154.8160000000003,
+      "detector": "transient_flux",
+      "score": 2.557775798762925,
+      "attrs": {
+        "raw_start": 3154.688,
+        "raw_end": 3154.8160000000003,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3158.976,
+      "end": 3159.1040000000003,
+      "detector": "transient_flux",
+      "score": 2.0891561874350506,
+      "attrs": {
+        "raw_start": 3158.976,
+        "raw_end": 3159.1040000000003,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3197.76,
+      "end": 3197.888,
+      "detector": "transient_flux",
+      "score": 1.5404079677782623,
+      "attrs": {
+        "raw_start": 3197.76,
+        "raw_end": 3197.888,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3216.896,
+      "end": 3217.024,
+      "detector": "transient_flux",
+      "score": 2.6689285174567137,
+      "attrs": {
+        "raw_start": 3216.896,
+        "raw_end": 3217.024,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3232.0,
+      "end": 3232.128,
+      "detector": "transient_flux",
+      "score": 4.581623931494919,
+      "attrs": {
+        "raw_start": 3232.0,
+        "raw_end": 3232.128,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3237.984,
+      "end": 3238.112,
+      "detector": "transient_flux",
+      "score": 3.740374638025527,
+      "attrs": {
+        "raw_start": 3237.984,
+        "raw_end": 3238.112,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3446.496,
+      "end": 3446.656,
+      "detector": "transient_flux",
+      "score": 2.8259068378045358,
+      "attrs": {
+        "raw_start": 3446.496,
+        "raw_end": 3446.656,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3541.6,
+      "end": 3541.728,
+      "detector": "transient_flux",
+      "score": 3.0602859206226705,
+      "attrs": {
+        "raw_start": 3541.6,
+        "raw_end": 3541.728,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3681.856,
+      "end": 3681.984,
+      "detector": "transient_flux",
+      "score": 2.4490244528861846,
+      "attrs": {
+        "raw_start": 3681.856,
+        "raw_end": 3681.984,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3826.464,
+      "end": 3826.592,
+      "detector": "transient_flux",
+      "score": 2.4608338111084613,
+      "attrs": {
+        "raw_start": 3826.464,
+        "raw_end": 3826.592,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3835.3920000000003,
+      "end": 3835.52,
+      "detector": "transient_flux",
+      "score": 1.3192830261255148,
+      "attrs": {
+        "raw_start": 3835.3920000000003,
+        "raw_end": 3835.52,
+        "enabled": true
+      }
+    },
+    {
+      "start": 3863.936,
+      "end": 3864.0640000000003,
+      "detector": "transient_flux",
+      "score": 1.3224214301081725,
+      "attrs": {
+        "raw_start": 3863.936,
+        "raw_end": 3864.0640000000003,
+        "enabled": true
+      }
+    },
+    {
+      "start": 4164.0960000000005,
+      "end": 4164.224,
+      "detector": "transient_flux",
+      "score": 3.5205066232812285,
+      "attrs": {
+        "raw_start": 4164.0960000000005,
+        "raw_end": 4164.224,
+        "enabled": true
+      }
+    },
+    {
+      "start": 4165.536,
+      "end": 4165.664,
+      "detector": "transient_flux",
+      "score": 1.375689581008171,
+      "attrs": {
+        "raw_start": 4165.536,
+        "raw_end": 4165.664,
+        "enabled": true
+      }
+    },
+    {
+      "start": 4199.392,
+      "end": 4199.52,
+      "detector": "transient_flux",
+      "score": 1.549065972972983,
+      "attrs": {
+        "raw_start": 4199.392,
+        "raw_end": 4199.52,
         "enabled": true
       }
     },
@@ -841,6 +2656,28 @@
       }
     },
     {
+      "start": 5095.36,
+      "end": 5095.488,
+      "detector": "transient_flux",
+      "score": 1.2528350336292975,
+      "attrs": {
+        "raw_start": 5095.36,
+        "raw_end": 5095.488,
+        "enabled": true
+      }
+    },
+    {
+      "start": 5101.216,
+      "end": 5101.344,
+      "detector": "transient_flux",
+      "score": 1.09660530872742,
+      "attrs": {
+        "raw_start": 5101.216,
+        "raw_end": 5101.344,
+        "enabled": true
+      }
+    },
+    {
       "start": 5266.318372236748,
       "end": 5267.74141018599,
       "detector": "voice_vad",
@@ -853,6 +2690,28 @@
       }
     },
     {
+      "start": 5411.264,
+      "end": 5411.392,
+      "detector": "transient_flux",
+      "score": 1.1913502813126216,
+      "attrs": {
+        "raw_start": 5411.264,
+        "raw_end": 5411.392,
+        "enabled": true
+      }
+    },
+    {
+      "start": 5759.36,
+      "end": 5759.488,
+      "detector": "transient_flux",
+      "score": 0.870229995969065,
+      "attrs": {
+        "raw_start": 5759.36,
+        "raw_end": 5759.488,
+        "enabled": true
+      }
+    },
+    {
       "start": 6465.8099999999995,
       "end": 6466.44,
       "detector": "voice_vad",
@@ -860,6 +2719,61 @@
       "attrs": {
         "raw_start": 6465.8099999999995,
         "raw_end": 6466.44,
+        "enabled": true
+      }
+    },
+    {
+      "start": 6883.456,
+      "end": 6883.584,
+      "detector": "transient_flux",
+      "score": 2.2096464633454374,
+      "attrs": {
+        "raw_start": 6883.456,
+        "raw_end": 6883.584,
+        "enabled": true
+      }
+    },
+    {
+      "start": 6885.568,
+      "end": 6885.696,
+      "detector": "transient_flux",
+      "score": 1.480103365126226,
+      "attrs": {
+        "raw_start": 6885.568,
+        "raw_end": 6885.696,
+        "enabled": true
+      }
+    },
+    {
+      "start": 6888.0960000000005,
+      "end": 6888.224,
+      "detector": "transient_flux",
+      "score": 2.0339054990717296,
+      "attrs": {
+        "raw_start": 6888.0960000000005,
+        "raw_end": 6888.224,
+        "enabled": true
+      }
+    },
+    {
+      "start": 6901.92,
+      "end": 6902.048,
+      "detector": "transient_flux",
+      "score": 1.8538089370147175,
+      "attrs": {
+        "raw_start": 6901.92,
+        "raw_end": 6902.048,
+        "enabled": true
+      }
+    },
+    {
+      "start": 6906.784000000001,
+      "end": 6906.912,
+      "detector": "transient_flux",
+      "score": 2.0114866178269857,
+      "attrs": {
+        "raw_start": 6906.784000000001,
+        "raw_end": 6906.912,
         "enabled": true
       }
     },
@@ -875,6 +2789,50 @@
       }
     },
     {
+      "start": 6951.968,
+      "end": 6952.0960000000005,
+      "detector": "transient_flux",
+      "score": 3.4574003340341894,
+      "attrs": {
+        "raw_start": 6951.968,
+        "raw_end": 6952.0960000000005,
+        "enabled": true
+      }
+    },
+    {
+      "start": 6963.968,
+      "end": 6964.0960000000005,
+      "detector": "transient_flux",
+      "score": 2.201728789571495,
+      "attrs": {
+        "raw_start": 6963.968,
+        "raw_end": 6964.0960000000005,
+        "enabled": true
+      }
+    },
+    {
+      "start": 6978.368,
+      "end": 6978.528,
+      "detector": "transient_flux",
+      "score": 1.756662287850265,
+      "attrs": {
+        "raw_start": 6978.368,
+        "raw_end": 6978.528,
+        "enabled": true
+      }
+    },
+    {
+      "start": 6988.576,
+      "end": 6988.704,
+      "detector": "transient_flux",
+      "score": 2.2534059205071433,
+      "attrs": {
+        "raw_start": 6988.576,
+        "raw_end": 6988.704,
+        "enabled": true
+      }
+    },
+    {
       "start": 6991.679999999999,
       "end": 6992.219999999999,
       "detector": "voice_vad",
@@ -884,10 +2842,395 @@
         "raw_end": 6992.219999999999,
         "enabled": true
       }
+    },
+    {
+      "start": 7010.848,
+      "end": 7010.976000000001,
+      "detector": "transient_flux",
+      "score": 0.9723335269333067,
+      "attrs": {
+        "raw_start": 7010.848,
+        "raw_end": 7010.976000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7030.432,
+      "end": 7030.56,
+      "detector": "transient_flux",
+      "score": 1.8310934654491644,
+      "attrs": {
+        "raw_start": 7030.432,
+        "raw_end": 7030.56,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7038.144,
+      "end": 7038.272,
+      "detector": "transient_flux",
+      "score": 1.5699262227347865,
+      "attrs": {
+        "raw_start": 7038.144,
+        "raw_end": 7038.272,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7040.192,
+      "end": 7040.32,
+      "detector": "transient_flux",
+      "score": 2.32050941447918,
+      "attrs": {
+        "raw_start": 7040.192,
+        "raw_end": 7040.32,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7080.6720000000005,
+      "end": 7080.8,
+      "detector": "transient_flux",
+      "score": 1.90991296163538,
+      "attrs": {
+        "raw_start": 7080.6720000000005,
+        "raw_end": 7080.8,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7101.504,
+      "end": 7101.6320000000005,
+      "detector": "transient_flux",
+      "score": 1.4608778160061315,
+      "attrs": {
+        "raw_start": 7101.504,
+        "raw_end": 7101.6320000000005,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7112.416,
+      "end": 7112.544,
+      "detector": "transient_flux",
+      "score": 1.9499151319034693,
+      "attrs": {
+        "raw_start": 7112.416,
+        "raw_end": 7112.544,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7122.816,
+      "end": 7122.944,
+      "detector": "transient_flux",
+      "score": 1.666144013700867,
+      "attrs": {
+        "raw_start": 7122.816,
+        "raw_end": 7122.944,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7157.024,
+      "end": 7157.152,
+      "detector": "transient_flux",
+      "score": 1.4252692081093017,
+      "attrs": {
+        "raw_start": 7157.024,
+        "raw_end": 7157.152,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7195.04,
+      "end": 7195.168000000001,
+      "detector": "transient_flux",
+      "score": 1.6658365057461597,
+      "attrs": {
+        "raw_start": 7195.04,
+        "raw_end": 7195.168000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7197.568,
+      "end": 7197.696,
+      "detector": "transient_flux",
+      "score": 2.8455507844760253,
+      "attrs": {
+        "raw_start": 7197.568,
+        "raw_end": 7197.696,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7200.224,
+      "end": 7200.352,
+      "detector": "transient_flux",
+      "score": 1.0736248555169652,
+      "attrs": {
+        "raw_start": 7200.224,
+        "raw_end": 7200.352,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7209.664,
+      "end": 7209.792,
+      "detector": "transient_flux",
+      "score": 2.224558799652826,
+      "attrs": {
+        "raw_start": 7209.664,
+        "raw_end": 7209.792,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7215.904,
+      "end": 7216.064,
+      "detector": "transient_flux",
+      "score": 0.7597604024069273,
+      "attrs": {
+        "raw_start": 7215.904,
+        "raw_end": 7216.064,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7222.624,
+      "end": 7222.752,
+      "detector": "transient_flux",
+      "score": 3.703775823938228,
+      "attrs": {
+        "raw_start": 7222.624,
+        "raw_end": 7222.752,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7240.0960000000005,
+      "end": 7240.224,
+      "detector": "transient_flux",
+      "score": 1.7951143786267216,
+      "attrs": {
+        "raw_start": 7240.0960000000005,
+        "raw_end": 7240.224,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7270.752,
+      "end": 7270.912,
+      "detector": "transient_flux",
+      "score": 1.0094169685698413,
+      "attrs": {
+        "raw_start": 7270.752,
+        "raw_end": 7270.912,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7272.224,
+      "end": 7272.384,
+      "detector": "transient_flux",
+      "score": 1.3256713370607285,
+      "attrs": {
+        "raw_start": 7272.224,
+        "raw_end": 7272.384,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7293.8240000000005,
+      "end": 7293.952,
+      "detector": "transient_flux",
+      "score": 2.2479905331179846,
+      "attrs": {
+        "raw_start": 7293.8240000000005,
+        "raw_end": 7293.952,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7304.16,
+      "end": 7304.2880000000005,
+      "detector": "transient_flux",
+      "score": 1.9770765166213458,
+      "attrs": {
+        "raw_start": 7304.16,
+        "raw_end": 7304.2880000000005,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7306.56,
+      "end": 7306.688,
+      "detector": "transient_flux",
+      "score": 2.127357877716446,
+      "attrs": {
+        "raw_start": 7306.56,
+        "raw_end": 7306.688,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7308.32,
+      "end": 7308.448,
+      "detector": "transient_flux",
+      "score": 0.8846692186481523,
+      "attrs": {
+        "raw_start": 7308.32,
+        "raw_end": 7308.448,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7311.808,
+      "end": 7311.936000000001,
+      "detector": "transient_flux",
+      "score": 1.4939841055113905,
+      "attrs": {
+        "raw_start": 7311.808,
+        "raw_end": 7311.936000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7323.872,
+      "end": 7324.0,
+      "detector": "transient_flux",
+      "score": 2.304140408803288,
+      "attrs": {
+        "raw_start": 7323.872,
+        "raw_end": 7324.0,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7327.616,
+      "end": 7327.744000000001,
+      "detector": "transient_flux",
+      "score": 1.5855234710785457,
+      "attrs": {
+        "raw_start": 7327.616,
+        "raw_end": 7327.744000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7338.0160000000005,
+      "end": 7338.144,
+      "detector": "transient_flux",
+      "score": 1.331058350193476,
+      "attrs": {
+        "raw_start": 7338.0160000000005,
+        "raw_end": 7338.144,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7351.232,
+      "end": 7351.360000000001,
+      "detector": "transient_flux",
+      "score": 1.6845407381839732,
+      "attrs": {
+        "raw_start": 7351.232,
+        "raw_end": 7351.360000000001,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7357.92,
+      "end": 7358.048,
+      "detector": "transient_flux",
+      "score": 1.4375121084403608,
+      "attrs": {
+        "raw_start": 7357.92,
+        "raw_end": 7358.048,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7391.936000000001,
+      "end": 7392.064,
+      "detector": "transient_flux",
+      "score": 3.1922031597587024,
+      "attrs": {
+        "raw_start": 7391.936000000001,
+        "raw_end": 7392.064,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7393.184,
+      "end": 7393.312,
+      "detector": "transient_flux",
+      "score": 3.5468085581013695,
+      "attrs": {
+        "raw_start": 7393.184,
+        "raw_end": 7393.312,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7401.8240000000005,
+      "end": 7401.984,
+      "detector": "transient_flux",
+      "score": 4.032691399675092,
+      "attrs": {
+        "raw_start": 7401.8240000000005,
+        "raw_end": 7401.984,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7432.224,
+      "end": 7432.352,
+      "detector": "transient_flux",
+      "score": 1.347457643744181,
+      "attrs": {
+        "raw_start": 7432.224,
+        "raw_end": 7432.352,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7435.904,
+      "end": 7436.032,
+      "detector": "transient_flux",
+      "score": 3.001446310658599,
+      "attrs": {
+        "raw_start": 7435.904,
+        "raw_end": 7436.032,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7437.2480000000005,
+      "end": 7437.408,
+      "detector": "transient_flux",
+      "score": 2.5068136300687867,
+      "attrs": {
+        "raw_start": 7437.2480000000005,
+        "raw_end": 7437.408,
+        "enabled": true
+      }
+    },
+    {
+      "start": 7454.432,
+      "end": 7454.56,
+      "detector": "transient_flux",
+      "score": 1.6167087028368339,
+      "attrs": {
+        "raw_start": 7454.432,
+        "raw_end": 7454.56,
+        "enabled": true
+      }
     }
   ],
   "detection_settings": {
-    "mode": "voice",
+    "mode": "transient",
     "threshold": "auto",
     "detection_pre_pad_ms": 0.0,
     "detection_post_pad_ms": 0.0,
@@ -897,7 +3240,7 @@
     "post_pad_ms": 0.0,
     "merge_gap_ms": 0.0,
     "min_dur_ms": 100.0,
-    "max_dur_ms": 60000.0,
+    "max_dur_ms": 1000.0,
     "min_gap_ms": 1000.0,
     "no_merge_after_padding": true,
     "max_samples": 512,
@@ -910,6 +3253,7 @@
     "lp": 20000.0,
     "nr": 12.0,
     "analysis_sr": 16000,
+    "analysis_resample_strategy": "default",
     "analysis_mid_only": false,
     "spectrogram": true,
     "spectro_size": "4096x1024",
@@ -925,7 +3269,7 @@
     "show_overlap_dialog": true,
     "overlap_default_behavior": "discard_duplicates",
     "subfolder_template": "{basename}__{mode}__pre{pre}ms_post{post}ms_thr{thr}",
-    "max_workers": 1
+    "max_workers": 31
   },
   "export_settings": {
     "export_pre_pad_ms": 0.0,
@@ -947,25 +3291,25 @@
     "time_signature_denominator": 4
   },
   "ui_state": {
-    "view_start": 4895.701223769243,
-    "view_end": 4993.748564287882,
+    "view_start": 2659.9165304945873,
+    "view_end": 2673.1125245623057,
     "zoom_level": 32.0,
     "editor_splitter_sizes": [
-      724,
+      1241,
       100
     ],
     "player_splitter_sizes": [
       100,
       299,
-      309
+      826
     ],
     "main_splitter_sizes": [
-      834,
+      1351,
       0
     ],
     "timeline_splitter_sizes": [
-      0,
-      1392
+      315,
+      2237
     ],
     "player_visible": true,
     "info_table_visible": true,

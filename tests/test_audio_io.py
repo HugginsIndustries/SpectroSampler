@@ -31,7 +31,12 @@ def test_describe_audio_load_error_handles_missing_file():
 
 
 def test_describe_audio_load_error_handles_invalid_data():
-    error = FFmpegError("ffprobe failed: Invalid data found when processing input")
+    error = FFmpegError(
+        ["ffprobe"],
+        "ffprobe failed: Invalid data found when processing input",
+        stderr="Invalid data found when processing input",
+        context="Inspect audio metadata (ffprobe)",
+    )
     advice = describe_audio_load_error(Path("broken.wav"), error)
     assert "unsupported" in advice.reason.lower() or "corrupted" in advice.reason.lower()
     assert "convert" in advice.suggestion.lower()
