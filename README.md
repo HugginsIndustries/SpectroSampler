@@ -12,7 +12,7 @@ SpectroSampler is delivered as a GUI desktop app. Command-line usage is limited 
 - **Detection Engine** – Multiple detectors (auto mix, voice VAD, transient, non-silence energy, spectral interestingness) with per-mode thresholds, merge rules, gap/duration guards, and multi-core processing control (`CPU workers`). Voice VAD pre-filters audio with a configurable 200–4500 Hz band-pass before WebRTC scoring so speech-focused projects stay cleaner.
 - **Editing Surface** – High-resolution spectrogram (0.5×–32× zoom), navigator overview, draggable sample markers, context actions (play, enable/disable toggle, rename/delete selections, center/fill view), and lockable grid snapping (time or musical bars).
 - **Playback & Review** – Integrated sample player with looping, scrub bar, next/previous navigation, live playback indicator on the spectrogram, and sample table shortcuts (center/fill/play/delete).
-- **Export Pipeline** – Per-project format, sample rate, bit depth, channel configuration, and padding. Export selected samples without re-encoding by default (WAV/FLAC supported out of the box).
+- **Export Pipeline** – Per-project format, sample rate, bit depth, channel configuration, padding, and optional peak normalization. Export selected samples without re-encoding by default (WAV/FLAC supported out of the box).
 - **Session Safety** – Project files capture every setting (including overlap resolution defaults and editor layout), autosave keeps rotating backups, the overlap dialog protects existing edits when re-running detection, and a Help → Diagnostics panel surfaces FFmpeg and audio device information for quick troubleshooting.
 
 > Looking for GUI usage details and walkthrough screenshots? See `docs/GUI_GUIDE.md`.
@@ -113,14 +113,16 @@ spectrosampler-gui --version          Show version and exit
 - Frame one or more samples instantly with **View → Zoom to Selection** (`Ctrl+Shift+F`) to inspect edits without manual panning.
 - Use **Duration Edits** (Edit menu) to expand/contract or stretch from start/end.
 - Re-order or re-rank samples automatically (Edit → Auto Sample Order / Re-order Samples), and use **Enable All Samples** / **Disable All Samples** for quick project-wide toggles.
+- Remove overlapping or duplicate samples (Edit → Remove All Overlaps / Remove All Duplicates) or merge overlapping samples into single samples (Edit → Merge All Overlaps) to clean up detection results.
 - Toggle display of disabled samples (View menu).
 - Switch between System, Dark, and Light themes (View → Theme); the choice persists between sessions via your local preferences.
 - Lock snap to grid or adjust BPM/subdivision (View → Grid Settings).
 - Limit UI refresh rate if working on large projects (View → Limit UI Refresh Rate → Refresh Rate).
 
 ### Exporting
-- Choose format, sample rate, bit depth, and channels from the Export menu (set sample rate to `0` or pick “None (original)” for bit depth/channels to inherit source values).
+- Choose format, sample rate, bit depth, and channels from the Export menu (set sample rate to `0` or pick "None (original)" for bit depth/channels to inherit source values).
 - Configure pre/post padding to add silence to each export.
+- Enable Peak Normalization (Export → Peak Normalization) to normalize each sample to -0.1 dBFS without clipping.
 - Optionally enter a per-sample Name in the info table; it slots into the filename slug between the index and time range.
 - Only enabled & checked samples in the info table are exported. Default format preserves original audio (no re-encode if parameters match).
 - Exported filenames are sanitized automatically, so reserved characters and Windows device names never block writing files on Windows, macOS, or Linux.

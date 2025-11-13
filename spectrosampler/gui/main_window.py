@@ -135,6 +135,9 @@ class MainWindow(QMainWindow):
         self._zoom_selection_action: QAction | None = None
         self._disable_all_action: QAction | None = None
         self._enable_all_action: QAction | None = None
+        self._remove_overlaps_action: QAction | None = None
+        self._remove_duplicates_action: QAction | None = None
+        self._merge_overlaps_action: QAction | None = None
 
         # Auto-save manager
         self._autosave_manager = AutoSaveManager(self)
@@ -203,6 +206,7 @@ class MainWindow(QMainWindow):
         self._export_sample_rate: int | None = None
         self._export_bit_depth: str | None = None
         self._export_channels: str | None = None
+        self._export_normalize = False
 
         # UI refresh rate settings
         self._ui_refresh_rate_enabled = True
@@ -486,6 +490,15 @@ class MainWindow(QMainWindow):
         channels_action.triggered.connect(self._on_export_channels_settings)
         export_menu.addAction(channels_action)
 
+        export_menu.addSeparator()
+
+        # Peak Normalization
+        self._export_normalize_action = QAction("Peak &Normalization", self)
+        self._export_normalize_action.setCheckable(True)
+        self._export_normalize_action.setChecked(False)
+        self._export_normalize_action.triggered.connect(self._on_export_normalize_toggled)
+        export_menu.addAction(self._export_normalize_action)
+
         # Edit menu
         edit_menu = menubar.addMenu("&Edit")
         self._undo_action = QAction("&Undo", self)
@@ -525,6 +538,26 @@ class MainWindow(QMainWindow):
         delete_all_action = QAction("&Delete All Samples", self)
         delete_all_action.triggered.connect(self._on_delete_all_samples)
         edit_menu.addAction(delete_all_action)
+
+        # Remove All Overlaps
+        self._remove_overlaps_action = QAction("Remove All &Overlaps", self)
+        self._remove_overlaps_action.setEnabled(False)
+        self._remove_overlaps_action.triggered.connect(self._on_remove_all_overlaps)
+        edit_menu.addAction(self._remove_overlaps_action)
+
+        # Remove All Duplicates
+        self._remove_duplicates_action = QAction("Remove All &Duplicates", self)
+        self._remove_duplicates_action.setEnabled(False)
+        self._remove_duplicates_action.triggered.connect(self._on_remove_all_duplicates)
+        edit_menu.addAction(self._remove_duplicates_action)
+
+        # Merge All Overlaps
+        self._merge_overlaps_action = QAction("Merge All &Overlaps", self)
+        self._merge_overlaps_action.setEnabled(False)
+        self._merge_overlaps_action.triggered.connect(self._on_merge_all_overlaps)
+        edit_menu.addAction(self._merge_overlaps_action)
+
+        edit_menu.addSeparator()
 
         # Enable/Disable All Samples
         self._enable_all_action = QAction("&Enable All Samples", self)
@@ -1074,6 +1107,7 @@ class MainWindow(QMainWindow):
             "export_sample_rate": self._export_sample_rate,
             "export_bit_depth": self._export_bit_depth,
             "export_channels": self._export_channels,
+            "export_normalize": self._export_normalize,
         }
 
         # Collect grid settings
@@ -1209,6 +1243,7 @@ class MainWindow(QMainWindow):
                 if data.export_settings.get("export_channels") is not None
                 else None
             )
+            self._export_normalize = bool(data.export_settings.get("export_normalize", False))
             # Update export format menu actions
             if self._export_format == "wav":
                 if hasattr(self, "_export_format_wav_action"):
@@ -2018,6 +2053,9 @@ class MainWindow(QMainWindow):
         if self._pipeline_wrapper:
             self._push_undo_state()
 
+        # Update action states (e.g., enable/disable overlap removal actions)
+        self._update_sample_action_states()
+
         # Mark as modified (samples detected)
         self._project_modified = True
         self._update_window_title()
@@ -2079,6 +2117,7 @@ class MainWindow(QMainWindow):
             "export_sample_rate": self._export_sample_rate,
             "export_bit_depth": self._export_bit_depth,
             "export_channels": self._export_channels,
+            "export_normalize": self._export_normalize,
         }
         try:
             self._settings_manager.set_export_settings(snapshot)
@@ -2106,11 +2145,14 @@ class MainWindow(QMainWindow):
             self._export_sample_rate = snapshot.get("export_sample_rate", self._export_sample_rate)
             self._export_bit_depth = snapshot.get("export_bit_depth", self._export_bit_depth)
             self._export_channels = snapshot.get("export_channels", self._export_channels)
+            self._export_normalize = snapshot.get("export_normalize", False)
 
         if hasattr(self, "_export_format_wav_action"):
             self._export_format_wav_action.setChecked(self._export_format == "wav")
         if hasattr(self, "_export_format_flac_action"):
             self._export_format_flac_action.setChecked(self._export_format == "flac")
+        if hasattr(self, "_export_normalize_action"):
+            self._export_normalize_action.setChecked(self._export_normalize)
 
         self._apply_export_settings_to_pipeline()
 
@@ -2230,6 +2272,8 @@ class MainWindow(QMainWindow):
             # Mark as modified (sample moved)
             self._project_modified = True
             self._update_window_title()
+            # Update action states (overlaps/duplicates may have changed)
+            self._update_sample_action_states()
 
     def _on_sample_resized(self, index: int, start: float, end: float) -> None:
         """Handle sample resized.
@@ -2294,6 +2338,8 @@ class MainWindow(QMainWindow):
             # Mark as modified (sample resized)
             self._project_modified = True
             self._update_window_title()
+            # Update action states (overlaps/duplicates may have changed)
+            self._update_sample_action_states()
 
     def _on_sample_created(self, start: float, end: float) -> None:
         """Handle sample created.
@@ -2318,6 +2364,8 @@ class MainWindow(QMainWindow):
             # Mark as modified (sample created)
             self._project_modified = True
             self._update_window_title()
+            # Update action states (overlaps/duplicates may have changed)
+            self._update_sample_action_states()
 
     def _on_sample_deleted(self, index: int) -> None:
         """Handle sample deleted.
@@ -3303,20 +3351,218 @@ class MainWindow(QMainWindow):
         status = "Deleted sample" if deleted_count == 1 else f"Deleted {deleted_count} samples"
         self._status_label.setText(status)
 
+    def _on_remove_all_overlaps(self) -> None:
+        """Remove all overlapping samples, keeping the earliest-starting sample in each overlap group."""
+        if not self._pipeline_wrapper:
+            return
+
+        from spectrosampler.gui.overlap_detector import find_overlaps_within_segments
+
+        segments = self._pipeline_wrapper.current_segments
+        if not segments:
+            return
+
+        # Find all overlap groups
+        overlap_groups = find_overlaps_within_segments(segments)
+        if not overlap_groups:
+            return
+
+        self._push_undo_state()
+
+        # Collect indices to remove (all but the earliest-starting in each group)
+        indices_to_remove = set()
+        for group in overlap_groups:
+            # Sort group by start time, keep the first (earliest-starting)
+            group_with_starts = [(i, segments[i].start) for i in group]
+            group_with_starts.sort(key=lambda x: x[1])
+            # Remove all but the first
+            for idx, _ in group_with_starts[1:]:
+                indices_to_remove.add(idx)
+
+        if indices_to_remove:
+            # Remove in reverse order to maintain indices
+            for idx in sorted(indices_to_remove, reverse=True):
+                del segments[idx]
+
+            self._maybe_auto_reorder()
+            self._spectrogram_widget.set_segments(self._get_display_segments())
+            self._update_sample_table(segments)
+            self._update_navigator_markers()
+
+            self._project_modified = True
+            self._update_window_title()
+            removed_count = len(indices_to_remove)
+            status = (
+                f"Removed {removed_count} overlapping sample"
+                if removed_count == 1
+                else f"Removed {removed_count} overlapping samples"
+            )
+            self._status_label.setText(status)
+            self._update_sample_action_states()
+
+    def _on_merge_all_overlaps(self) -> None:
+        """Merge all overlapping samples into single samples spanning from earliest start to latest end."""
+        if not self._pipeline_wrapper:
+            return
+
+        from spectrosampler.detectors.base import Segment
+        from spectrosampler.gui.overlap_detector import find_overlaps_within_segments
+
+        segments = self._pipeline_wrapper.current_segments
+        if not segments:
+            return
+
+        # Find all overlap groups
+        overlap_groups = find_overlaps_within_segments(segments)
+        if not overlap_groups:
+            return
+
+        self._push_undo_state()
+
+        # Collect indices to remove and merged segments to add
+        indices_to_remove = set()
+        merged_segments: list[tuple[int, Segment]] = []  # (insertion_index, segment)
+
+        for group in overlap_groups:
+            # Find min start and max end for this group
+            group_segments = [segments[i] for i in group]
+            min_start = min(seg.start for seg in group_segments)
+            max_end = max(seg.end for seg in group_segments)
+
+            # Determine detector: prefer "manual" if any segment is manual, otherwise use first detector
+            detector = group_segments[0].detector
+            for seg in group_segments:
+                if seg.detector == "manual":
+                    detector = "manual"
+                    break
+
+            # Create merged segment
+            merged_seg = Segment(
+                start=min_start,
+                end=max_end,
+                detector=detector,
+                score=1.0,
+            )
+            # Preserve enabled state if all segments in group are enabled
+            all_enabled = all(
+                hasattr(seg, "attrs") and seg.attrs is not None and seg.attrs.get("enabled", True)
+                for seg in group_segments
+            )
+            merged_seg.attrs["enabled"] = all_enabled
+
+            # Use the earliest index as insertion point
+            insertion_index = min(group)
+            merged_segments.append((insertion_index, merged_seg))
+
+            # Mark all segments in this group for removal
+            indices_to_remove.update(group)
+
+        if indices_to_remove:
+            # Remove old segments in reverse order to maintain indices
+            for idx in sorted(indices_to_remove, reverse=True):
+                del segments[idx]
+
+            # Insert merged segments at their original positions (adjusted for removals)
+            # Sort by insertion index in reverse to insert from end to start
+            merged_segments.sort(key=lambda x: x[0], reverse=True)
+            for insertion_idx, merged_seg in merged_segments:
+                # Adjust insertion index for segments already removed
+                adjusted_idx = insertion_idx - sum(
+                    1 for idx in indices_to_remove if idx < insertion_idx
+                )
+                segments.insert(adjusted_idx, merged_seg)
+
+            self._maybe_auto_reorder()
+            self._spectrogram_widget.set_segments(self._get_display_segments())
+            self._update_sample_table(segments)
+            self._update_navigator_markers()
+
+            self._project_modified = True
+            self._update_window_title()
+            merged_count = len(overlap_groups)
+            status = (
+                f"Merged {merged_count} overlap group"
+                if merged_count == 1
+                else f"Merged {merged_count} overlap groups"
+            )
+            self._status_label.setText(status)
+            self._update_sample_action_states()
+
+    def _on_remove_all_duplicates(self) -> None:
+        """Remove all duplicate samples, keeping one per duplicate set (preferring earliest-starting)."""
+        if not self._pipeline_wrapper:
+            return
+
+        from spectrosampler.gui.overlap_detector import find_duplicates_within_segments
+
+        segments = self._pipeline_wrapper.current_segments
+        if not segments:
+            return
+
+        # Find all duplicate groups (5ms tolerance)
+        duplicate_groups = find_duplicates_within_segments(segments, tolerance_ms=5.0)
+        if not duplicate_groups:
+            return
+
+        self._push_undo_state()
+
+        # Collect indices to remove (all but one per duplicate set, preferring earliest-starting)
+        indices_to_remove = set()
+        for group in duplicate_groups:
+            # Sort group by start time, keep the first (earliest-starting)
+            group_with_starts = [(i, segments[i].start) for i in group]
+            group_with_starts.sort(key=lambda x: x[1])
+            # Remove all but the first
+            for idx, _ in group_with_starts[1:]:
+                indices_to_remove.add(idx)
+
+        if indices_to_remove:
+            # Remove in reverse order to maintain indices
+            for idx in sorted(indices_to_remove, reverse=True):
+                del segments[idx]
+
+            self._maybe_auto_reorder()
+            self._spectrogram_widget.set_segments(self._get_display_segments())
+            self._update_sample_table(segments)
+            self._update_navigator_markers()
+
+            self._project_modified = True
+            self._update_window_title()
+            removed_count = len(indices_to_remove)
+            status = (
+                f"Removed {removed_count} duplicate sample"
+                if removed_count == 1
+                else f"Removed {removed_count} duplicate samples"
+            )
+            self._status_label.setText(status)
+            self._update_sample_action_states()
+
     def _update_sample_action_states(self) -> None:
         """Enable or disable bulk sample actions based on current state."""
-        if self._disable_all_action is None or self._enable_all_action is None:
+        if (
+            self._disable_all_action is None
+            or self._enable_all_action is None
+            or self._remove_overlaps_action is None
+            or self._remove_duplicates_action is None
+            or self._merge_overlaps_action is None
+        ):
             return
 
         if not self._pipeline_wrapper:
             self._disable_all_action.setEnabled(False)
             self._enable_all_action.setEnabled(False)
+            self._remove_overlaps_action.setEnabled(False)
+            self._remove_duplicates_action.setEnabled(False)
+            self._merge_overlaps_action.setEnabled(False)
             return
 
         segments = self._pipeline_wrapper.current_segments
         if not segments:
             self._disable_all_action.setEnabled(False)
             self._enable_all_action.setEnabled(False)
+            self._remove_overlaps_action.setEnabled(False)
+            self._remove_duplicates_action.setEnabled(False)
+            self._merge_overlaps_action.setEnabled(False)
             return
 
         any_enabled = False
@@ -3334,6 +3580,48 @@ class MainWindow(QMainWindow):
 
         self._disable_all_action.setEnabled(any_enabled)
         self._enable_all_action.setEnabled(any_disabled)
+
+        # Check for overlaps and duplicates
+        from spectrosampler.gui.overlap_detector import (
+            find_duplicates_within_segments,
+            find_overlaps_within_segments,
+        )
+
+        overlap_groups = find_overlaps_within_segments(segments)
+        duplicate_groups = find_duplicates_within_segments(segments, tolerance_ms=5.0)
+
+        has_overlaps = len(overlap_groups) > 0
+        has_duplicates = len(duplicate_groups) > 0
+
+        # Debug: log if overlaps found but duplicates not found (potential issue)
+        if has_overlaps and not has_duplicates and len(segments) >= 2:
+            # Check if any overlapping segments might actually be duplicates
+            for group in overlap_groups:
+                if len(group) >= 2:
+                    # Check if segments in this overlap group are duplicates
+                    from spectrosampler.gui.overlap_detector import is_duplicate
+
+                    for i in range(len(group)):
+                        for j in range(i + 1, len(group)):
+                            idx_i = group[i]
+                            idx_j = group[j]
+                            if idx_i < len(segments) and idx_j < len(segments):
+                                seg_i = segments[idx_i]
+                                seg_j = segments[idx_j]
+                                if is_duplicate(seg_i, seg_j, tolerance_ms=5.0):
+                                    # Found a duplicate that wasn't detected - this shouldn't happen
+                                    logger.debug(
+                                        "Overlapping segments %d and %d are duplicates but not detected: "
+                                        "start_diff=%.9f, end_diff=%.9f",
+                                        idx_i,
+                                        idx_j,
+                                        abs(seg_i.start - seg_j.start),
+                                        abs(seg_i.end - seg_j.end),
+                                    )
+
+        self._remove_overlaps_action.setEnabled(has_overlaps)
+        self._remove_duplicates_action.setEnabled(has_duplicates)
+        self._merge_overlaps_action.setEnabled(has_overlaps)
 
     def _on_export_samples(self) -> None:
         """Handle export samples action."""
@@ -3362,7 +3650,9 @@ class MainWindow(QMainWindow):
 
             # Export samples
             try:
-                count = self._pipeline_wrapper.export_samples(Path(output_dir), selected_indices)
+                count = self._pipeline_wrapper.export_samples(
+                    Path(output_dir), selected_indices, normalize=self._export_normalize
+                )
                 QMessageBox.information(
                     self, "Export Complete", f"Exported {count} samples to:\n{output_dir}"
                 )
@@ -3613,6 +3903,8 @@ class MainWindow(QMainWindow):
         # Mark as modified
         self._project_modified = True
         self._update_window_title()
+        # Update action states (overlaps/duplicates may have changed)
+        self._update_sample_action_states()
 
     def _on_model_duration_edited(self, column: int, new_duration: float) -> None:
         if not self._pipeline_wrapper or not (
@@ -3632,6 +3924,8 @@ class MainWindow(QMainWindow):
         # Mark as modified
         self._project_modified = True
         self._update_window_title()
+        # Update action states (overlaps/duplicates may have changed)
+        self._update_sample_action_states()
 
     def _get_enabled_segments(self) -> list[Segment]:
         """Return only enabled segments from current pipeline wrapper.
@@ -3723,6 +4017,11 @@ class MainWindow(QMainWindow):
         # Update action states
         self._export_format_wav_action.setChecked(format == "wav")
         self._export_format_flac_action.setChecked(format == "flac")
+        self._apply_export_settings_to_pipeline()
+
+    def _on_export_normalize_toggled(self, checked: bool) -> None:
+        """Handle export normalization toggle."""
+        self._export_normalize = checked
         self._apply_export_settings_to_pipeline()
         self._persist_export_settings()
         # Mark as modified (export settings changed)

@@ -14,6 +14,7 @@ def build_sample_filename(
     index: int,
     total: int,
     zero_pad: int = 4,
+    normalize: bool = False,
 ) -> str:
     """Build deterministic sample filename.
 
@@ -23,6 +24,7 @@ def build_sample_filename(
         index: Sample index (0-based).
         total: Total number of samples.
         zero_pad: Number of digits for zero-padding index.
+        normalize: Whether peak normalization is enabled (adds "_norm" suffix).
 
     Returns:
         Filename (without extension) for the sample.
@@ -68,6 +70,8 @@ def build_sample_filename(
         filename_parts.append(custom_name_fragment)
     filename_parts.append(f"{start_rounded}s-{end_rounded}s")
     filename_parts.append(f"detector-{label}")
+    if normalize:
+        filename_parts.append("norm")
     name = "_".join(filename_parts)
     return sanitize_filename(name)
 

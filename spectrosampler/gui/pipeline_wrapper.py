@@ -188,12 +188,18 @@ class PipelineWrapper:
             fut.add_done_callback(_done)
         return fut
 
-    def export_samples(self, output_dir: Path, selected_indices: list[int] | None = None) -> int:
+    def export_samples(
+        self,
+        output_dir: Path,
+        selected_indices: list[int] | None = None,
+        normalize: bool = False,
+    ) -> int:
         """Export selected samples.
 
         Args:
             output_dir: Output directory for samples.
             selected_indices: List of segment indices to export. If None, exports all.
+            normalize: Whether to normalize peak levels to -0.1 dBFS.
 
         Returns:
             Number of samples exported.
@@ -217,7 +223,10 @@ class PipelineWrapper:
             segment = self.current_segments[idx]
             base_name = self.current_audio_path.stem
             filename = (
-                build_sample_filename(base_name, segment, idx, len(self.current_segments)) + ".wav"
+                build_sample_filename(
+                    base_name, segment, idx, len(self.current_segments), normalize=normalize
+                )
+                + ".wav"
             )
             output_path = output_dir / filename
 
@@ -232,6 +241,8 @@ class PipelineWrapper:
                     sample_rate=self.settings.sample_rate,
                     bit_depth=self.settings.bit_depth,
                     channels=self.settings.channels,
+                    normalize=normalize,
+                    lufs_target=None,  # Use peak normalization, not LUFS
                 )
                 exported_count += 1
             except (FFmpegError, OSError, ValueError) as exc:

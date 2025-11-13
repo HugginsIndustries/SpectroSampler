@@ -2,7 +2,7 @@
   "version": "1.0",
   "spectrosampler_version": "0.1.0",
   "created": "2025-11-06T01:32:00.700707Z",
-  "modified": "2025-11-12T14:12:38.201541+00:00",
+  "modified": "2025-11-13T01:27:16.058408+00:00",
   "audio_path": "C:\\dev\\SamplePacker\\recordings\\field.WAV",
   "segments": [
     {
@@ -183,12 +183,10 @@
     },
     {
       "start": 1066.35,
-      "end": 1066.8899999999999,
-      "detector": "voice_vad",
+      "end": 1066.89,
+      "detector": "manual",
       "score": 1.0,
       "attrs": {
-        "raw_start": 1066.35,
-        "raw_end": 1066.8899999999999,
         "enabled": true
       }
     },
@@ -899,7 +897,8 @@
     "export_format": "wav",
     "export_sample_rate": null,
     "export_bit_depth": null,
-    "export_channels": null
+    "export_channels": null,
+    "export_normalize": true
   },
   "grid_settings": {
     "mode": "free_time",
@@ -912,8 +911,8 @@
     "time_signature_denominator": 4
   },
   "ui_state": {
-    "view_start": 1045.1181730696478,
-    "view_end": 1098.3810606959046,
+    "view_start": 1053.057797819728,
+    "view_end": 1145.0960676378998,
     "zoom_level": 32.0,
     "editor_splitter_sizes": [
       400,

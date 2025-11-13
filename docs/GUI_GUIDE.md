@@ -42,9 +42,9 @@ All splitters are draggable. Collapse the player or info table from the View men
 ### 2.2 Menus & Key Commands
 
 - **File** – Project lifecycle (new/open/save), audio import, recent files.
-- **Edit** – Undo/redo, re-run detection, auto sample ordering, bulk delete/disable, project-wide **Enable All Samples** / **Disable All Samples**, Duration Edits (expand/contract, stretch from start/end).
+- **Edit** – Undo/redo, re-run detection, auto sample ordering, bulk delete/disable, project-wide **Enable All Samples** / **Disable All Samples**, overlap/duplicate removal and merging, Duration Edits (expand/contract, stretch from start/end).
 - **View** – Zoom controls (including Zoom to Selection with `Ctrl+Shift+F`), toggle info table/player visibility, show disabled samples, refresh-rate limiter, grid settings, and theme selection (System/Dark/Light).
-- **Export** – Pre/post padding, format (WAV/FLAC), sample rate, bit depth, channels.
+- **Export** – Pre/post padding, format (WAV/FLAC), sample rate, bit depth, channels, peak normalization.
 - **Settings** – Autosave toggle/interval, clear recent projects/audio.
 - **Help** – Diagnostics panel (FFmpeg status, audio devices, environment), verbose logging toggle, and the about dialog.
 
@@ -154,6 +154,8 @@ Right-click any segment (or multi-selection) in the spectrogram to open the cont
 
 ### 5.2 Precision Tools
 
+- **Remove All Overlaps / Remove All Duplicates / Merge All Overlaps (Edit menu)** – Clean up detection results by removing overlapping or duplicate samples, or merging overlaps. Remove All Overlaps keeps the earliest-starting sample in each overlap group. Remove All Duplicates removes samples whose start/end times are within 5 ms of another sample, keeping one per set. Merge All Overlaps combines each overlap group into a single sample spanning from the earliest start time to the latest end time. These actions are automatically disabled when no overlaps or duplicates are detected.
+
 - **Duration Edits (Edit menu)** –
   - *Expand/Contract* adjusts both edges.
   - *Extend/Shorten (From Start)* moves the end boundary only.
@@ -179,6 +181,8 @@ Toggle snapping quickly with the `G` key or the checkbox under detection setting
 
 Open the **Export** menu to configure session-wide parameters:
 
+- **Peak Normalization** – When enabled, normalizes each exported sample to -0.1 dBFS without clipping. This ensures consistent peak levels across all samples. The setting persists across sessions and is saved with project files.
+
 - **Pre/Post padding...** – Add silence before/after every exported sample.
 - **Format** – WAV or FLAC.
 - **Sample Rate** – Enter 0 to keep the original.
@@ -197,7 +201,7 @@ When ready, choose **File → Export Samples** (`Ctrl+E`). Only enabled (checked
 - **Manual Save** – `Ctrl+S` writes the current `.ssproj`. `Ctrl+Shift+S` prompts for a new filename.
 - **Unsaved Changes Prompt** – Closing the window or quitting the app with modifications opens a Save/Discard/Cancel dialog.
 - **Recent Lists** – Clear stale entries from Settings → Clear Recent Projects/Audio.
-- **Detection & Export Defaults** – Thresholds, timing guards, overlap behavior, and export format/padding choices persist per-user and reload with each project, so tweaking them once saves the preference for future sessions.
+- **Detection & Export Defaults** – Thresholds, timing guards, overlap behavior, and export format/padding/normalization choices persist per-user and reload with each project, so tweaking them once saves the preference for future sessions.
 - **Layout Preservation** – Splitter positions for the settings/editor, player, navigator, and info table are stored in the project file; collapsing a panel keeps it collapsed on reopen.
 
 Project files are plain JSON and include audio paths, detection/export settings, grid config, and window layout. If the referenced audio is missing, SpectroSampler prompts to relink it when opening the project.

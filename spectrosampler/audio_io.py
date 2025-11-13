@@ -281,8 +281,107 @@ def extract_sample(
     ensure_dir(output_path.parent)
     logging.debug(f"Extracting sample: {start_sec:.3f}s-{end_sec:.3f}s -> {output_path}")
     duration = max(0.0, end_sec - start_sec)
-    # Try stream copy first (skip for WAV to ensure precise duration)
-    if (format or "").lower() != "wav" and not str(output_path).lower().endswith(".wav"):
+
+    # If normalization is requested, we need to re-encode (can't use stream copy)
+    # For peak normalization, we need two passes: detect peak, then normalize
+    if normalize and lufs_target is None:
+        # Two-pass peak normalization to -0.1 dBFS
+        # First pass: detect peak level using volumedetect
+        temp_extract_filters: list[str] = []
+        if fade_in_ms and fade_in_ms > 0:
+            temp_extract_filters.append(f"afade=t=in:st=0:d={fade_in_ms/1000.0:.3f}")
+        if fade_out_ms and fade_out_ms > 0:
+            start_out = max(0.0, duration - fade_out_ms / 1000.0)
+            temp_extract_filters.append(
+                f"afade=t=out:st={start_out:.3f}:d={fade_out_ms/1000.0:.3f}"
+            )
+
+        # Run volumedetect to find peak level
+        volumedetect_cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            f"{start_sec:.6f}",
+            "-i",
+            str(input_path),
+            "-t",
+            f"{duration:.6f}",
+        ]
+        # Combine fade filters with volumedetect in a single -af option
+        volumedetect_filters = temp_extract_filters.copy()
+        volumedetect_filters.append("volumedetect")
+        volumedetect_cmd += ["-af", ",".join(volumedetect_filters), "-f", "null", "-"]
+
+        proc = subprocess.run(volumedetect_cmd, capture_output=True, text=True)
+        if proc.returncode != 0:
+            raise FFmpegError(proc.stderr)
+
+        # Parse peak level from volumedetect output
+        # Format: "max_volume: -X.XX dB"
+        peak_db = None
+        for line in proc.stderr.split("\n"):
+            if "max_volume:" in line:
+                try:
+                    peak_db = float(line.split("max_volume:")[1].split("dB")[0].strip())
+                    break
+                except (ValueError, IndexError):
+                    pass
+
+        if peak_db is None:
+            # Fallback: assume peak is at 0 dBFS if detection fails
+            peak_db = 0.0
+
+        # Calculate gain needed to normalize to -0.1 dBFS
+        target_db = -0.1
+        gain_db = target_db - peak_db
+
+        # Second pass: apply volume adjustment
+        af_filters: list[str] = []
+        if fade_in_ms and fade_in_ms > 0:
+            af_filters.append(f"afade=t=in:st=0:d={fade_in_ms/1000.0:.3f}")
+        if fade_out_ms and fade_out_ms > 0:
+            start_out = max(0.0, duration - fade_out_ms / 1000.0)
+            af_filters.append(f"afade=t=out:st={start_out:.3f}:d={fade_out_ms/1000.0:.3f}")
+
+        # Apply volume adjustment (only if gain is needed)
+        if abs(gain_db) > 0.01:  # Only apply if gain change is significant
+            af_filters.append(f"volume={gain_db}dB")
+
+        cmd = [
+            "ffmpeg",
+            "-y",
+            "-ss",
+            f"{start_sec:.6f}",
+            "-i",
+            str(input_path),
+            "-t",
+            f"{duration:.6f}",
+        ]
+        if af_filters:
+            cmd += ["-af", ",".join(af_filters)]
+        if channels:
+            cmd += ["-ac", "1" if channels == "mono" else "2"]
+        if sample_rate:
+            cmd += ["-ar", str(sample_rate)]
+        if bit_depth:
+            sample_fmt = {"16": "s16", "24": "s32", "32f": "fltp"}.get(bit_depth, None)
+            if sample_fmt:
+                cmd += ["-sample_fmt", sample_fmt]
+        if format:
+            cmd += ["-f", format]
+        cmd += [str(output_path)]
+
+        proc = subprocess.run(cmd, capture_output=True, text=True)
+        if proc.returncode != 0:
+            raise FFmpegError(proc.stderr)
+        return
+
+    # Try stream copy first (skip for WAV to ensure precise duration, and skip if normalization needed)
+    if (
+        (format or "").lower() != "wav"
+        and not str(output_path).lower().endswith(".wav")
+        and not normalize
+    ):
         cmd_copy = [
             "ffmpeg",
             "-y",
@@ -299,17 +398,19 @@ def extract_sample(
         proc = subprocess.run(cmd_copy, capture_output=True, text=True)
         if proc.returncode == 0:
             return
-    # Fallback: re-encode
-    af_filters: list[str] = []
+    # Fallback: re-encode (for non-normalized exports or when stream copy fails)
+    fallback_filters: list[str] = []
     if fade_in_ms and fade_in_ms > 0:
-        af_filters.append(f"afade=t=in:st=0:d={fade_in_ms/1000.0:.3f}")
+        fallback_filters.append(f"afade=t=in:st=0:d={fade_in_ms/1000.0:.3f}")
     if fade_out_ms and fade_out_ms > 0:
         start_out = max(0.0, duration - fade_out_ms / 1000.0)
-        af_filters.append(f"afade=t=out:st={start_out:.3f}:d={fade_out_ms/1000.0:.3f}")
+        fallback_filters.append(f"afade=t=out:st={start_out:.3f}:d={fade_out_ms/1000.0:.3f}")
     if lufs_target is not None:
-        af_filters.append(f"loudnorm=I={lufs_target}")
+        fallback_filters.append(f"loudnorm=I={lufs_target}")
     elif normalize:
-        af_filters.append("dynaudnorm")
+        # This shouldn't be reached due to early return above, but keep as fallback
+        # Peak normalization to -0.1 dBFS using loudnorm with True Peak target
+        fallback_filters.append("loudnorm=I=-23:TP=-0.1")
     cmd = [
         "ffmpeg",
         "-y",
@@ -320,8 +421,8 @@ def extract_sample(
         "-t",
         f"{duration:.6f}",
     ]
-    if af_filters:
-        cmd += ["-af", ",".join(af_filters)]
+    if fallback_filters:
+        cmd += ["-af", ",".join(fallback_filters)]
     if channels:
         cmd += ["-ac", "1" if channels == "mono" else "2"]
     if sample_rate:

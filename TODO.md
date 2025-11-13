@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 22 items, P2: 17 items_
+_Summary: P0: 0 items, P1: 20 items, P2: 17 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -103,12 +103,6 @@ _Summary: P0: 0 items, P1: 22 items, P2: 17 items_
 - [ ] [P2] Duplicate sample detection warning
   - Warn on high overlap or similarity threshold.
   - Acceptance: Warning badge in table and quick-fix to remove duplicates.
-- [ ] [P1] Add edit menu actions for removing overlaps and duplicates
-  - Add `Remove All Overlaps` and `Remove All Duplicates` under the `Edit` menu.
-  - Acceptance:
-    - `Remove All Overlaps` keeps the earliest-starting sample in each overlap group and removes the rest.
-    - `Remove All Duplicates` removes samples whose start/end times are within 5 ms of another sample, keeping one per set.
-    - Actions disable when no overlaps or duplicates are detected.
 
 ### Project Management
 - No items currently planned
@@ -134,9 +128,6 @@ _Summary: P0: 0 items, P1: 22 items, P2: 17 items_
 - [ ] [P2] Add sample preview before export
   - Lightweight preview/edit dialog for boundaries and info.
   - Acceptance: Adjustments applied prior to writing files.
-- [ ] [P1] Add optional peak normalization on export
-  - When enabled, normalize each sample to a target peak (e.g., -0.1 dBFS) without clipping.
-  - Acceptance: Export setting toggle; resulting files peak at target ±0.1 dB; no clipping; source audio unchanged. [Docs Impact]
 - [ ] [P2] Add batch export with pause/resume
   - Track per-sample status and allow resume.
   - Acceptance: Resuming completes remaining items after restart.
