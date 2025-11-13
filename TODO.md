@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 20 items, P2: 17 items_
+_Summary: P0: 0 items, P1: 26 items, P2: 15 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -26,6 +26,11 @@ _Summary: P0: 0 items, P1: 20 items, P2: 17 items_
 ## **Fixes**
 
 ### Detection & Sample Processing
+- [ ] [P1] Improve VAD accuracy and reduce false positives
+  - Fix Voice Activity Detection to reduce false positives (too many non-voice samples detected) and improve reliability (better detection of actual voice samples).
+  - Review and adjust aggressiveness settings, frame merging logic, post-processing filters, and segment validation criteria.
+  - Consider additional filtering mechanisms (e.g., energy-based validation, spectral characteristics, duration heuristics) to distinguish voice from non-voice audio.
+  - Acceptance: VAD detects fewer false positives (non-voice samples); VAD reliably detects actual voice samples; measurable precision/recall improvement on voice/non-voice test clips.
 - [ ] [P1] Improve detection defaults for better accuracy
   - Review current defaults (e.g., VoiceVAD aggressiveness=3), thresholds, and padding.
   - Consider adaptive thresholds based on audio characteristics.
@@ -57,7 +62,18 @@ _Summary: P0: 0 items, P1: 20 items, P2: 17 items_
   - Acceptance: Warning dialog includes “Try alternate resample” that re-runs analysis.
 
 ### Code Quality & Robustness
-- No items currently planned
+- [ ] [P1] Fix undo/redo sync issues
+  - Fix undo/redo system that occasionally gets out of sync when performing certain actions.
+  - Review all actions and ensure they properly push undo states at the correct times.
+  - Identify and fix race conditions, missing undo state pushes, or incorrect state restoration that cause sync issues.
+  - Add validation to ensure undo/redo stacks remain consistent with actual segment state.
+  - Acceptance: Undo/redo remains in sync across all actions; no state inconsistencies occur; undo/redo actions correctly restore previous states regardless of action sequence.
+- [ ] [P1] Remove broken Ctrl++ and Ctrl+- zoom shortcuts and View menu options
+  - Remove "Zoom In" and "Zoom Out" menu items from View menu and their associated keyboard shortcuts (Ctrl++ and Ctrl+-) as they don't work and are unnecessary.
+  - Remove `_on_zoom_in()` and `_on_zoom_out()` handler methods and related action definitions.
+  - Update README.md to remove these shortcuts from the Keyboard Shortcuts table.
+  - Ensure changes do not break existing functional zooming methods (scroll wheel and navigator highlight).
+  - Acceptance: Zoom In/Out menu items and shortcuts removed; README updated; scroll wheel zoom and navigator highlight zoom remain functional; no broken functionality remains. [Docs Impact]
 
 ### Processing Pipeline
 - [ ] [P1] Build resilient batch processing runner (from `spectrosampler/pipeline.py:Pipeline.process`)
@@ -80,6 +96,11 @@ _Summary: P0: 0 items, P1: 20 items, P2: 17 items_
   - Acceptance: Single operation writes multiple formats per selected sample.
 
 ### UI Improvements
+- [ ] [P1] Add waveform view above spectrogram
+  - Add waveform view above spectrogram (below player) with a divider between. Waveform syncs with the current spectrogram view (time range and zoom).
+  - Allow hiding via dragging divider and/or View menu option "Show Waveform" (default on).
+  - Default height should be the same as the navigator bar below the spectrogram (minimum 60 pixels).
+  - Acceptance: Waveform view visible above spectrogram with divider; syncs with spectrogram view changes; can be hidden via divider drag or View menu toggle; default height matches navigator; state persists across sessions. [Docs Impact]
 - [ ] [P1] Add spectrogram scale options (linear/log/exp) and color maps
   - Real-time switchable scaling; selectable color schemes.
   - Acceptance: Scale and color map controls with immediate visual update. [Docs Impact]
@@ -118,19 +139,20 @@ _Summary: P0: 0 items, P1: 20 items, P2: 17 items_
 ### Workflow Improvements
 
 #### Export Workflow
-- [ ] [P1] Add export progress with cancel and final summary
-  - Progress bar, ETA, safe cancel; end-of-run dialog summarizing per-sample status.
-  - Acceptance: Summary lists success/failures; cancel cleans temporary files. [Docs Impact]
+- [ ] [P1] Add full export dialog with advanced options
+  - Create comprehensive export dialog with tabbed interface: "Global" tab for modifying all global batch settings (format, sample rate, bit depth, channels, bandpass filtering utilizing existing `bandpass_filter`, pre-padding, post-padding, normalization, file name format, export folder, etc.) and "Samples" tab with one-by-one sample review UI.
+  - Samples tab shows mini spectrogram and waveform preview for current sample (including pre/post-padding that updates when those settings change), forward/back navigation buttons, and sample indicator showing current position (e.g., "4/72").
+  - Allow per-sample overrides for settings that support it (bandpass filtering, padding, normalization, etc.); per-sample settings override global settings when configured.
+  - "Cancel" and "Export Sample(s)" buttons visible at bottom regardless of active tab.
+  - Move all options from current "Export" menu into new export dialog (pre-padding, post-padding, format, sample rate, bit depth, channels, peak normalization).
+  - Include export progress tracking with progress bar, ETA, safe cancel, and end-of-run dialog summarizing per-sample status (success/failures).
+  - Support batch export with pause/resume functionality: track per-sample status and allow resuming to complete remaining items after restart.
+  - Persist all export settings (batch defaults and per-sample overrides) across sessions.
+  - Acceptance: Export dialog has Global and Samples tabs; Samples tab shows current sample preview with forward/back navigation and position indicator (e.g., "4/72"); all settings available as global batch defaults; per-sample settings can override global when configured; Cancel and Export buttons always visible; progress tracking with cancel and summary dialog; pause/resume functionality works; all Export menu options moved to dialog; settings persist across sessions. [Docs Impact]
 - [ ] [P1] Expand HTML report contents (from `spectrosampler/report.py:create_html_report`)
   - Acceptance:
     - Report includes processing settings summary, detector statistics, and deep links to generated assets.
     - Smoke test renders the HTML and validates required sections exist.
-- [ ] [P2] Add sample preview before export
-  - Lightweight preview/edit dialog for boundaries and info.
-  - Acceptance: Adjustments applied prior to writing files.
-- [ ] [P2] Add batch export with pause/resume
-  - Track per-sample status and allow resume.
-  - Acceptance: Resuming completes remaining items after restart.
 
 #### File Management
 - [ ] [P1] Polish drag & drop flow
@@ -143,6 +165,16 @@ _Summary: P0: 0 items, P1: 20 items, P2: 17 items_
   - Acceptance: The three-choice dialog appears; append preserves timing alignment.
 
 #### Editing Workflow
+- [ ] [P1] Add tool modes for spectrogram interaction (Select/Edit/Create)
+  - Implement three distinct tool modes similar to modern DAW software: "Select" (allows drag selection of samples compatible with CTRL/SHIFT selection and existing click + CTRL/SHIFT click selection), "Edit" (allows current editing behavior: dragging samples/edges), and "Create" (allows current click drag adding of samples).
+  - When each mode is active, all other modes are disabled, allowing the user to select exactly what action they want to do.
+  - Add tool mode selector toolbar above detection settings panel (with divider, same default height as player) with visual indication of active mode.
+  - Ensure feature integrates with all existing functionality (undo/redo, ESC cancellation, context menus, keyboard shortcuts, etc.).
+  - Acceptance: Tool mode selector toolbar visible above detection settings with divider; Select mode enables drag selection box; Edit mode enables sample drag/resize; Create mode enables sample creation; only one mode active at a time; all existing features work correctly in each mode. [Docs Impact]
+- [ ] [P1] Add temporary grid snap on Ctrl+drag for sample clips and edges
+  - Hold Ctrl while dragging sample clips or resizing clip edges to temporarily snap to grid, even when grid snapping is disabled globally.
+  - Snapping applies during drag/resize operations and releases when Ctrl is released or mouse button is released.
+  - Acceptance: Holding Ctrl while dragging/resizing snaps to grid positions; releasing Ctrl returns to free movement; works regardless of global grid snap setting. [Docs Impact]
 - [ ] [P2] Implement advanced undo/redo
   - Extend undo/redo beyond samples/segments to all project changes, including settings changes (exclude global user settings that apply to all projects, e.g., auto-save).
   - Add Edit menu submenus for Undo and Redo that list the last 10 states with human-readable change descriptions.
