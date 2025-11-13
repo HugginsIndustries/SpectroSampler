@@ -57,6 +57,8 @@ from spectrosampler.gui.settings import SettingsManager
 from spectrosampler.gui.spectrogram_tiler import SpectrogramTile, SpectrogramTiler
 from spectrosampler.gui.spectrogram_widget import SpectrogramWidget
 from spectrosampler.gui.theme import ThemeManager
+from spectrosampler.gui.waveform_manager import WaveformData, WaveformManager
+from spectrosampler.gui.waveform_widget import WaveformWidget
 from spectrosampler.pipeline_settings import ProcessingSettings
 
 logger = logging.getLogger(__name__)
@@ -122,6 +124,11 @@ class MainWindow(QMainWindow):
         self._overview_manager.progress.connect(self._on_overview_progress)
         self._overview_manager.finished.connect(self._on_overview_finished)
         self._overview_manager.error.connect(self._on_overview_error)
+
+        # Waveform manager
+        self._waveform_manager = WaveformManager(self)
+        self._waveform_manager.finished.connect(self._on_waveform_finished)
+        self._waveform_manager.error.connect(self._on_waveform_error)
 
         # Settings manager
         self._settings_manager = SettingsManager()
@@ -231,6 +238,9 @@ class MainWindow(QMainWindow):
         self._sample_player.loop_changed.connect(self._on_player_loop_changed)
         self._sample_player.seek_requested.connect(self._on_player_seek_requested)
 
+        # Waveform widget
+        self._waveform_widget = WaveformWidget()
+
         # Connect media player position updates
         self._media_player.positionChanged.connect(self._on_media_position_changed)
         self._media_player.durationChanged.connect(self._on_media_duration_changed)
@@ -263,19 +273,24 @@ class MainWindow(QMainWindow):
         )
         self._spectrogram_widget.samples_name_edit_requested.connect(self._on_edit_sample_names)
         self._spectrogram_widget.samples_delete_requested.connect(self._on_delete_samples)
-        # Keep navigator highlight synced to editor zoom/pan
-        self._spectrogram_widget.view_changed.connect(
-            lambda s, e: self._navigator.set_view_range(s, e)
-        )
+        # Keep navigator highlight and waveform synced to editor zoom/pan
+        self._spectrogram_widget.view_changed.connect(self._on_spectrogram_view_changed)
 
         # Vertical splitter for player and spectrogram (resizable)
         self._player_spectro_splitter = QSplitter(Qt.Orientation.Vertical)
         self._player_spectro_splitter.addWidget(self._sample_player)
+        self._player_spectro_splitter.addWidget(self._waveform_widget)
         self._player_spectro_splitter.addWidget(self._spectrogram_widget)
         self._player_spectro_splitter.setStretchFactor(0, 0)  # Player doesn't stretch
-        self._player_spectro_splitter.setStretchFactor(1, 1)  # Spectrogram stretches
+        self._player_spectro_splitter.setStretchFactor(1, 0)
+        self._player_spectro_splitter.setStretchFactor(2, 1)  # Spectrogram stretches
         self._player_spectro_splitter.setCollapsible(0, True)  # Allow collapsing player
-        self._player_spectro_splitter.setCollapsible(1, False)
+        self._player_spectro_splitter.setCollapsible(1, True)
+        self._player_spectro_splitter.setCollapsible(2, False)
+        self._player_spectro_splitter.setHandleWidth(6)
+        self._suppress_waveform_splitter = False
+        self._waveform_collapsed_size = 1
+        self._waveform_min_visible = 24
 
         editor_layout.addWidget(self._player_spectro_splitter)
 
@@ -364,12 +379,16 @@ class MainWindow(QMainWindow):
 
         # Set initial sizes
         splitter.setSizes([300, 800])
-        self._player_spectro_splitter.setSizes([120, 480])  # Player: 120px, Spectrogram: 480px
+        waveform_default = max(40, self._navigator.minimumHeight() // 2)
+        self._set_player_splitter_sizes(
+            [120, waveform_default, 420]
+        )  # Player, Waveform, Spectrogram
         editor_splitter.setSizes([600, 100])
         self._main_splitter.setSizes([600, table_height])
 
         # Store initial sizes for restore
         self._player_initial_size = 120
+        self._waveform_initial_size = waveform_default
         self._info_table_initial_size = table_height
 
         # Connect splitter signals to update menu action states when manually collapsed/expanded
@@ -678,6 +697,13 @@ class MainWindow(QMainWindow):
         self._hide_player_action.triggered.connect(self._on_toggle_player)
         view_menu.addAction(self._hide_player_action)
 
+        self._show_waveform_action = QAction("Show &Waveform", self)
+        self._show_waveform_action.setCheckable(True)
+        self._show_waveform_action.setChecked(True)
+        self._show_waveform_action.triggered.connect(self._on_toggle_waveform)
+        view_menu.addAction(self._show_waveform_action)
+        self._waveform_widget.setVisible(True)
+
         # Show Disabled Samples toggle moved from Edit to View
         view_menu.addAction(self._show_disabled_action)
 
@@ -880,6 +906,7 @@ class MainWindow(QMainWindow):
         self._sample_player.set_theme_colors(palette)
         self._navigator.set_theme_colors(palette)
         self._spectrogram_widget.set_theme_colors(palette)
+        self._waveform_widget.set_theme_colors(palette)
 
     def _on_new_project(self) -> None:
         """Handle new project action."""
@@ -904,7 +931,7 @@ class MainWindow(QMainWindow):
         self._current_audio_path = None
         if self._pipeline_wrapper:
             self._pipeline_wrapper.current_segments = []
-        self._spectrogram_widget.set_segments([])
+        self._apply_segments_to_views([])
         self._update_sample_table([])
         self._update_navigator_markers()
         # Make sure any loading screen is hidden and properly cleaned up
@@ -988,6 +1015,11 @@ class MainWindow(QMainWindow):
             self._loading_screen.set_message(f"Loading audio: {file_path.name}...")
             QApplication.processEvents()  # Process events to update message
 
+        # Cancel any in-flight waveform generation and reset widget
+        if self._waveform_manager.is_generating():
+            self._waveform_manager.cancel()
+        self._waveform_widget.clear_waveform()
+
         try:
             # Create pipeline wrapper
             settings = self._settings_panel.get_settings()
@@ -1016,10 +1048,13 @@ class MainWindow(QMainWindow):
             # Update UI
             duration = audio_info.get("duration", 0.0)
             self._spectrogram_widget.set_duration(duration)
+            # Ensure waveform duration stays in sync
+            self._waveform_widget.set_duration(duration)
             self._navigator.set_duration(duration)
 
             # Set initial time range
             self._spectrogram_widget.set_time_range(0.0, min(60.0, duration))
+            self._waveform_widget.set_view_range(0.0, min(60.0, duration))
             self._navigator.set_view_range(0.0, min(60.0, duration))
 
             # Add to recent audio files
@@ -1030,6 +1065,7 @@ class MainWindow(QMainWindow):
             self._overview_manager.start_generation(
                 self._tiler, file_path, duration, sample_rate=None
             )
+            self._waveform_manager.start_generation(file_path)
             # Note: Overview will be applied to UI via _on_overview_finished signal
 
             # Update frequency range
@@ -1046,7 +1082,7 @@ class MainWindow(QMainWindow):
             # Clear any existing segments and UI until detection is requested
             if self._pipeline_wrapper:
                 self._pipeline_wrapper.current_segments = []
-            self._spectrogram_widget.set_segments([])
+            self._apply_segments_to_views([])
             self._update_sample_table([])
             self._update_navigator_markers()
 
@@ -1067,6 +1103,8 @@ class MainWindow(QMainWindow):
             # Cancel overview generation if it was started
             if self._overview_manager.is_generating():
                 self._overview_manager.cancel()
+            if self._waveform_manager.is_generating():
+                self._waveform_manager.cancel()
             self._loading_screen.hide_overlay()
             advice = describe_audio_load_error(file_path, e)
             QMessageBox.critical(
@@ -1130,6 +1168,7 @@ class MainWindow(QMainWindow):
             ),
             player_visible=self._sample_player.isVisible(),
             info_table_visible=self._sample_table_view.isVisible(),
+            waveform_visible=self._waveform_widget.isVisible(),
         )
 
         # Create project data
@@ -1283,7 +1322,7 @@ class MainWindow(QMainWindow):
                 try:
                     segments = [_dict_to_segment(s) for s in data.segments]
                     self._pipeline_wrapper.current_segments = segments
-                    self._spectrogram_widget.set_segments(self._get_display_segments())
+                    self._apply_segments_to_views(self._get_display_segments())
                     self._update_sample_table(segments)
                     self._update_navigator_markers()
                 except (ValueError, KeyError, TypeError) as e:
@@ -1291,7 +1330,7 @@ class MainWindow(QMainWindow):
             else:
                 # No segments in project - clear segments
                 self._pipeline_wrapper.current_segments = []
-                self._spectrogram_widget.set_segments([])
+                self._apply_segments_to_views([])
                 self._update_sample_table([])
                 self._update_navigator_markers()
 
@@ -1308,6 +1347,7 @@ class MainWindow(QMainWindow):
                         view_start = max(0.0, min(view_start, view_end - 0.1))
                         self._spectrogram_widget.set_time_range(view_start, view_end)
                         self._navigator.set_view_range(view_start, view_end)
+                        self._waveform_widget.set_view_range(view_start, view_end)
                 # Restore zoom level
                 if hasattr(data.ui_state, "zoom_level"):
                     self._spectrogram_widget.set_zoom_level(data.ui_state.zoom_level)
@@ -1347,7 +1387,7 @@ class MainWindow(QMainWindow):
                     player_sizes = list(getattr(data.ui_state, "player_splitter_sizes", []) or [])
                     if player_sizes:
                         int_sizes = [max(0, int(s)) for s in player_sizes]
-                        self._player_spectro_splitter.setSizes(int_sizes)
+                        self._set_player_splitter_sizes(int_sizes)
                         if int_sizes and int_sizes[0] > 0:
                             self._player_initial_size = int_sizes[0]
                         if hasattr(self, "_hide_player_action"):
@@ -1360,8 +1400,10 @@ class MainWindow(QMainWindow):
                 # Restore panel visibility flags
                 info_visible = getattr(data.ui_state, "info_table_visible", True)
                 player_visible = getattr(data.ui_state, "player_visible", True)
+                waveform_visible = getattr(data.ui_state, "waveform_visible", True)
                 self._sample_table_view.setVisible(bool(info_visible))
                 self._sample_player.setVisible(bool(player_visible))
+                self._waveform_widget.setVisible(bool(waveform_visible))
 
                 if hasattr(self, "_hide_info_action"):
                     # Keep action in sync with actual visibility/sizes
@@ -1374,6 +1416,24 @@ class MainWindow(QMainWindow):
                     self._hide_player_action.setChecked(
                         (sizes[0] if sizes else 0) == 0 or not bool(player_visible)
                     )
+                if hasattr(self, "_show_waveform_action"):
+                    sizes = self._player_spectro_splitter.sizes()
+                    if bool(waveform_visible):
+                        if len(sizes) >= 3 and sizes[1] <= 0:
+                            restored = max(1, getattr(self, "_waveform_initial_size", 60))
+                            available = max(1, sizes[2])
+                            if available <= restored:
+                                restored = max(1, available // 2 or 1)
+                            sizes[1] = restored
+                            sizes[2] = max(1, available - restored)
+                            self._set_player_splitter_sizes(sizes)
+                        if len(sizes) >= 3 and sizes[1] > 0:
+                            self._waveform_initial_size = sizes[1]
+                    else:
+                        if len(sizes) >= 3 and sizes[1] > 0:
+                            self._waveform_initial_size = sizes[1]
+                            self._set_player_splitter_sizes([sizes[0], 1, sizes[2] + sizes[1] - 1])
+                    self._show_waveform_action.setChecked(bool(waveform_visible))
             except (AttributeError, ValueError, TypeError) as e:
                 logger.warning("Failed to restore UI state: %s", e, exc_info=e)
 
@@ -1572,6 +1632,8 @@ class MainWindow(QMainWindow):
         # Cancel overview generation if in progress
         if self._overview_manager.is_generating():
             self._overview_manager.cancel()
+        if self._waveform_manager.is_generating():
+            self._waveform_manager.cancel()
 
         # Auto-save on close if enabled and modified
         if self._settings_manager.get_auto_save_enabled() and self._project_modified:
@@ -1677,7 +1739,20 @@ class MainWindow(QMainWindow):
                 # Convert to int in case QSettings returns strings
                 try:
                     sizes_int = [int(s) if s else 0 for s in sizes]
-                    self._player_spectro_splitter.setSizes(sizes_int)
+                    if len(sizes_int) == 2:
+                        player_size, spectro_size = sizes_int
+                        waveform_size = getattr(self, "_waveform_initial_size", 60)
+                        waveform_size = max(0, waveform_size)
+                        if spectro_size <= waveform_size:
+                            waveform_size = max(0, spectro_size // 3)
+                        sizes_int = [
+                            player_size,
+                            waveform_size,
+                            max(1, spectro_size - waveform_size),
+                        ]
+                    elif len(sizes_int) >= 3:
+                        sizes_int = sizes_int[:3]
+                    self._set_player_splitter_sizes(sizes_int)
                 except (ValueError, TypeError):
                     pass
 
@@ -1686,6 +1761,36 @@ class MainWindow(QMainWindow):
             self._sample_table_view.setVisible(geometry["infoTableVisible"])
         if "playerVisible" in geometry:
             self._sample_player.setVisible(geometry["playerVisible"])
+        if "waveformVisible" in geometry:
+            waveform_visible = bool(geometry["waveformVisible"])
+        else:
+            waveform_visible = True
+
+        sizes = self._player_spectro_splitter.sizes()
+        if len(sizes) >= 3:
+            total = sum(sizes)
+            if waveform_visible:
+                if sizes[1] <= self._waveform_collapsed_size:
+                    desired = max(
+                        self._waveform_min_visible, getattr(self, "_waveform_initial_size", 60)
+                    )
+                    available = max(1, total - sizes[0])
+                    if available <= desired:
+                        desired = max(1, available // 2 or 1)
+                    self._set_player_splitter_sizes(
+                        [sizes[0], desired, max(1, total - sizes[0] - desired)]
+                    )
+                    sizes = self._player_spectro_splitter.sizes()
+                self._waveform_initial_size = max(self._waveform_min_visible, sizes[1])
+            else:
+                if sizes[1] > self._waveform_collapsed_size:
+                    self._waveform_initial_size = sizes[1]
+                    collapsed = self._waveform_collapsed_size
+                    self._set_player_splitter_sizes(
+                        [sizes[0], collapsed, max(1, total - sizes[0] - collapsed)]
+                    )
+            self._waveform_widget.setVisible(waveform_visible)
+            self._show_waveform_action.setChecked(waveform_visible)
 
     def _save_window_geometry(self) -> None:
         """Save window geometry to settings."""
@@ -1710,6 +1815,7 @@ class MainWindow(QMainWindow):
         # Save panel visibility
         geometry["infoTableVisible"] = self._sample_table_view.isVisible()
         geometry["playerVisible"] = self._sample_player.isVisible()
+        geometry["waveformVisible"] = self._waveform_widget.isVisible()
 
         self._settings_manager.set_window_geometry(geometry)
 
@@ -1826,6 +1932,19 @@ class MainWindow(QMainWindow):
         # Hide loading screen even if overview generation failed
         # UI can still function with detail tiles only
         self._loading_screen.hide_overlay()
+
+    def _on_waveform_finished(self, data: WaveformData) -> None:
+        """Handle waveform generation completion."""
+        self._waveform_widget.set_waveform_data(data)
+        # Ensure the displayed range remains in sync with the spectrogram
+        self._waveform_widget.set_view_range(
+            self._spectrogram_widget._start_time, self._spectrogram_widget._end_time
+        )
+        logger.info("Waveform generation completed for: %s", self._current_audio_path)
+
+    def _on_waveform_error(self, error_msg: str) -> None:
+        """Handle waveform generation error."""
+        logger.error("Waveform generation error: %s", error_msg)
 
     def _on_detect_samples(self) -> None:
         """Handle Detect Samples request."""
@@ -2039,7 +2158,7 @@ class MainWindow(QMainWindow):
             self._pipeline_wrapper.current_segments = final_segments
         # Apply auto-order if enabled (after merging new segments with existing)
         self._maybe_auto_reorder()
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._apply_segments_to_views(self._get_display_segments())
         self._update_sample_table(
             self._pipeline_wrapper.current_segments if self._pipeline_wrapper else final_segments
         )
@@ -2195,6 +2314,7 @@ class MainWindow(QMainWindow):
         self._selected_sample_indexes = normalized
         self._active_sample_index = normalized[-1] if normalized else None
 
+        self._waveform_widget.set_selected_indexes(normalized)
         self._sync_table_selection_from_state()
 
         self._update_zoom_selection_action()
@@ -2227,8 +2347,8 @@ class MainWindow(QMainWindow):
             self._sample_table_model.update_segment_times(index, seg.start, seg.end)
 
             self._maybe_auto_reorder()
-            # Update overlays only in spectrogram; no tile requests
-            self._spectrogram_widget.set_segments(self._get_display_segments())
+            # Update overlays in the editors without requesting new tiles
+            self._apply_segments_to_views(self._get_display_segments())
             self._update_navigator_markers()
 
             # Update player widget if this is the currently playing sample
@@ -2293,8 +2413,8 @@ class MainWindow(QMainWindow):
             self._sample_table_model.update_segment_times(index, seg.start, seg.end)
 
             self._maybe_auto_reorder()
-            # Update overlays only in spectrogram; no tile requests
-            self._spectrogram_widget.set_segments(self._get_display_segments())
+            # Update overlays in the editors without requesting new tiles
+            self._apply_segments_to_views(self._get_display_segments())
             self._update_navigator_markers()
 
             # Update player widget if this is the currently playing sample
@@ -2357,7 +2477,7 @@ class MainWindow(QMainWindow):
             seg.attrs["enabled"] = True
             self._pipeline_wrapper.current_segments.append(seg)
             self._maybe_auto_reorder()
-            self._spectrogram_widget.set_segments(self._get_display_segments())
+            self._apply_segments_to_views(self._get_display_segments())
             self._update_sample_table(self._pipeline_wrapper.current_segments)
             self._update_navigator_markers()
 
@@ -2411,6 +2531,7 @@ class MainWindow(QMainWindow):
             # Update player widget to show playing sample
             self._sample_player.set_sample(seg, index, len(self._pipeline_wrapper.current_segments))
             self._spectrogram_widget.set_playback_state(index, seg.start, paused=False)
+            self._waveform_widget.set_playback_state(index, seg.start, paused=False)
             self._play_segment(seg.start, seg.end)
 
     def _disconnect_media_status_handler(self) -> None:
@@ -2521,6 +2642,11 @@ class MainWindow(QMainWindow):
                     indicator_time,
                     paused=False,
                 )
+                self._waveform_widget.set_playback_state(
+                    self._current_playing_index,
+                    indicator_time,
+                    paused=False,
+                )
 
             # Clean up temp file when playback finishes and handle looping
             def on_playback_finished(status):
@@ -2545,6 +2671,7 @@ class MainWindow(QMainWindow):
                     self._is_paused = False
                     self._paused_position = 0
                     self._spectrogram_widget.set_playback_state(None, None)
+                    self._waveform_widget.set_playback_state(None, None)
 
                     if self._temp_playback_file and self._temp_playback_file.exists():
                         try:
@@ -2593,6 +2720,7 @@ class MainWindow(QMainWindow):
             end_time: End time.
         """
         self._spectrogram_widget.set_time_range(start_time, end_time)
+        self._waveform_widget.set_view_range(start_time, end_time)
 
     def _on_navigator_view_resized(self, start_time: float, end_time: float) -> None:
         """Handle navigator view resize.
@@ -2602,6 +2730,12 @@ class MainWindow(QMainWindow):
             end_time: End time.
         """
         self._spectrogram_widget.set_time_range(start_time, end_time)
+        self._waveform_widget.set_view_range(start_time, end_time)
+
+    def _on_spectrogram_view_changed(self, start_time: float, end_time: float) -> None:
+        """Handle spectrogram view updates and keep auxiliary widgets in sync."""
+        self._navigator.set_view_range(start_time, end_time)
+        self._waveform_widget.set_view_range(start_time, end_time)
 
     def _on_time_clicked(self, time: float) -> None:
         """Handle time click.
@@ -2617,6 +2751,7 @@ class MainWindow(QMainWindow):
         new_end = new_start + view_duration
         self._spectrogram_widget.set_time_range(new_start, new_end)
         self._navigator.set_view_range(new_start, new_end)
+        self._waveform_widget.set_view_range(new_start, new_end)
 
     def _on_player_play_requested(self, index: int) -> None:
         """Handle player play request.
@@ -2640,6 +2775,11 @@ class MainWindow(QMainWindow):
                     playback_time,
                     paused=False,
                 )
+                self._waveform_widget.set_playback_state(
+                    self._current_playing_index,
+                    playback_time,
+                    paused=False,
+                )
         else:
             # Start playing new sample
             self._current_playing_index = index
@@ -2656,6 +2796,11 @@ class MainWindow(QMainWindow):
         if self._current_playing_index is not None and self._current_playing_start is not None:
             playback_time = self._current_playing_start + (self._paused_position / 1000.0)
             self._spectrogram_widget.set_playback_state(
+                self._current_playing_index,
+                playback_time,
+                paused=True,
+            )
+            self._waveform_widget.set_playback_state(
                 self._current_playing_index,
                 playback_time,
                 paused=True,
@@ -2681,6 +2826,7 @@ class MainWindow(QMainWindow):
         self._is_paused = False
         self._paused_position = 0
         self._spectrogram_widget.set_playback_state(None, None)
+        self._waveform_widget.set_playback_state(None, None)
 
         # Reset progress bar
         self._sample_player.set_position(
@@ -2747,6 +2893,11 @@ class MainWindow(QMainWindow):
                 playback_time,
                 paused=self._is_paused,
             )
+            self._waveform_widget.set_playback_state(
+                self._current_playing_index,
+                playback_time,
+                paused=self._is_paused,
+            )
 
     def _on_media_duration_changed(self, duration: int) -> None:
         """Handle media player duration change.
@@ -2784,6 +2935,11 @@ class MainWindow(QMainWindow):
                 ):
                     playback_time = self._current_playing_start + (position_ms / 1000.0)
                     self._spectrogram_widget.set_playback_state(
+                        self._current_playing_index,
+                        playback_time,
+                        paused=True,
+                    )
+                    self._waveform_widget.set_playback_state(
                         self._current_playing_index,
                         playback_time,
                         paused=True,
@@ -2827,6 +2983,7 @@ class MainWindow(QMainWindow):
         new_end = new_start + view_duration
         self._spectrogram_widget.set_time_range(new_start, new_end)
         self._navigator.set_view_range(new_start, new_end)
+        self._waveform_widget.set_view_range(new_start, new_end)
 
     def _on_fill_clicked(self, index: int) -> None:
         """Zoom so the sample fills the editor with a small margin, then center."""
@@ -2848,6 +3005,14 @@ class MainWindow(QMainWindow):
             desired_end = min(total, desired_start + seg_dur + 2 * margin)
         self._spectrogram_widget.set_time_range(desired_start, desired_end)
         self._navigator.set_view_range(desired_start, desired_end)
+        self._waveform_widget.set_view_range(desired_start, desired_end)
+
+    def _apply_segments_to_views(
+        self, segments: list[Segment], *, update_tiles: bool = False
+    ) -> None:
+        """Render the provided segments in both the spectrogram and waveform views."""
+        self._spectrogram_widget.set_segments(segments, update_tiles=update_tiles)
+        self._waveform_widget.set_segments(segments)
 
     def _update_sample_table(self, segments: list[Segment]) -> None:
         """Update sample table model with new segments."""
@@ -2857,12 +3022,15 @@ class MainWindow(QMainWindow):
                 seg.attrs = {}
             seg.attrs.setdefault("enabled", True)
         self._sample_table_model.set_segments(segments)
+        display_segments = self._get_display_segments()
+        self._apply_segments_to_views(display_segments)
         if segments:
             if self._selected_sample_indexes:
                 normalized = self._normalize_sample_indexes(self._selected_sample_indexes)
                 self._spectrogram_widget.set_selected_indexes(
                     normalized, anchor=self._active_sample_index
                 )
+                self._waveform_widget.set_selected_indexes(normalized)
             else:
                 self._update_zoom_selection_action()
         else:
@@ -2901,6 +3069,8 @@ class MainWindow(QMainWindow):
                 self._sample_table_view.scrollTo(current)
         finally:
             self._syncing_table_selection = False
+
+        self._waveform_widget.set_selected_indexes(self._selected_sample_indexes)
 
     def _normalize_sample_indexes(self, indexes: Iterable[int]) -> list[int]:
         """Filter and de-duplicate sample indexes based on current segments."""
@@ -2970,6 +3140,7 @@ class MainWindow(QMainWindow):
             self._spectrogram_widget.set_selected_indexes([])
         except AttributeError:
             pass
+        self._waveform_widget.set_selected_indexes([])
         self._update_zoom_selection_action()
 
     def _on_zoom_to_selection(self) -> None:
@@ -3020,15 +3191,62 @@ class MainWindow(QMainWindow):
     def _on_toggle_player(self) -> None:
         """Handle toggle player visibility."""
         sizes = self._player_spectro_splitter.sizes()
+        if len(sizes) < 3:
+            return
+        total = sum(sizes)
+        waveform_size = sizes[1]
         if sizes[0] == 0:  # Player is collapsed
             # Restore player
-            self._player_spectro_splitter.setSizes([self._player_initial_size, sizes[1]])
+            restored_player = max(0, self._player_initial_size)
+            remaining = max(1, total - restored_player)
+            spectro_size = max(1, remaining - waveform_size)
+            self._set_player_splitter_sizes([restored_player, waveform_size, spectro_size])
             self._hide_player_action.setChecked(False)
         else:
             # Collapse player
             self._player_initial_size = sizes[0]  # Store current size
-            self._player_spectro_splitter.setSizes([0, sizes[1]])
+            spectro_size = max(1, total - waveform_size)
+            self._set_player_splitter_sizes([0, waveform_size, spectro_size])
             self._hide_player_action.setChecked(True)
+
+    def _on_toggle_waveform(self) -> None:
+        """Handle toggle waveform visibility."""
+        sizes = self._player_spectro_splitter.sizes()
+        if len(sizes) < 3:
+            return
+
+        player_size, waveform_size, spectro_size = sizes
+        total = player_size + waveform_size + spectro_size
+
+        if waveform_size <= self._waveform_collapsed_size:
+            desired = max(self._waveform_min_visible, getattr(self, "_waveform_initial_size", 60))
+            available = max(1, total - player_size)
+            if available <= desired:
+                desired = max(1, available // 2 or 1)
+            new_spectro_size = max(1, total - player_size - desired)
+            self._set_player_splitter_sizes([player_size, desired, new_spectro_size])
+            self._waveform_widget.setVisible(True)
+            self._show_waveform_action.setChecked(True)
+        else:
+            self._waveform_initial_size = waveform_size
+            collapsed = self._waveform_collapsed_size
+            new_spectro_size = max(1, total - player_size - collapsed)
+            self._set_player_splitter_sizes([player_size, collapsed, new_spectro_size])
+            self._waveform_widget.setVisible(False)
+            self._show_waveform_action.setChecked(False)
+
+    def _set_player_splitter_sizes(self, sizes: list[int]) -> None:
+        """Apply splitter sizes while suppressing feedback during adjustments."""
+        if len(sizes) < 3:
+            return
+        player = max(0, int(sizes[0]))
+        waveform = max(0, int(sizes[1]))
+        spectro = max(1, int(sizes[2]))
+        self._suppress_waveform_splitter = True
+        try:
+            self._player_spectro_splitter.setSizes([player, waveform, spectro])
+        finally:
+            self._suppress_waveform_splitter = False
 
     def _on_delete_all_samples(self) -> None:
         """Delete all samples."""
@@ -3036,7 +3254,7 @@ class MainWindow(QMainWindow):
             return
         self._push_undo_state()
         self._pipeline_wrapper.current_segments.clear()
-        self._spectrogram_widget.set_segments([])
+        self._apply_segments_to_views([])
         self._update_sample_table([])
         self._update_navigator_markers()
 
@@ -3049,7 +3267,7 @@ class MainWindow(QMainWindow):
         if not self._pipeline_wrapper:
             return
         self._pipeline_wrapper.current_segments.sort(key=lambda s: s.start)
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._apply_segments_to_views(self._get_display_segments())
         self._update_sample_table(self._pipeline_wrapper.current_segments)
         self._update_navigator_markers()
 
@@ -3065,7 +3283,7 @@ class MainWindow(QMainWindow):
         # If enabling auto-order, immediately enforce ordering
         if enabled and self._pipeline_wrapper:
             self._pipeline_wrapper.current_segments.sort(key=lambda s: s.start)
-            self._spectrogram_widget.set_segments(self._get_display_segments())
+            self._apply_segments_to_views(self._get_display_segments())
             self._update_sample_table(self._pipeline_wrapper.current_segments)
             self._update_navigator_markers()
 
@@ -3090,10 +3308,44 @@ class MainWindow(QMainWindow):
             index: Splitter index.
         """
         sizes = self._player_spectro_splitter.sizes()
+        total = sum(sizes)
         # Update menu action checked state based on visibility
         self._hide_player_action.setChecked(sizes[0] == 0)
         if sizes[0] > 0:
             self._player_initial_size = sizes[0]  # Update stored size
+        if len(sizes) >= 3:
+            total = sum(sizes)
+            collapsed = sizes[1] <= self._waveform_collapsed_size
+            if self._suppress_waveform_splitter:
+                visible = not collapsed
+            else:
+                if collapsed:
+                    if index == 0:
+                        # Prevent the player handle from consuming the waveform space when collapsed
+                        sizes[0] = max(0, self._player_initial_size)
+                        sizes[1] = self._waveform_collapsed_size
+                        sizes[2] = max(1, total - sizes[0] - sizes[1])
+                        self._set_player_splitter_sizes(sizes)
+                        return
+                    new_spectro = max(1, total - sizes[0] - self._waveform_collapsed_size)
+                    self._set_player_splitter_sizes(
+                        [sizes[0], self._waveform_collapsed_size, new_spectro]
+                    )
+                    sizes = self._player_spectro_splitter.sizes()
+                    visible = False
+                else:
+                    if sizes[1] < self._waveform_min_visible:
+                        new_waveform = self._waveform_min_visible
+                        new_spectro = max(1, total - sizes[0] - new_waveform)
+                        self._set_player_splitter_sizes([sizes[0], new_waveform, new_spectro])
+                        sizes = self._player_spectro_splitter.sizes()
+                    self._waveform_initial_size = sizes[1]
+                    visible = True
+
+            self._show_waveform_action.blockSignals(True)
+            self._show_waveform_action.setChecked(visible)
+            self._show_waveform_action.blockSignals(False)
+            self._waveform_widget.setVisible(visible)
 
     def _on_disable_all_samples(self) -> None:
         """Disable all samples (set enabled=False)."""
@@ -3113,7 +3365,7 @@ class MainWindow(QMainWindow):
             return
 
         self._update_sample_table(self._pipeline_wrapper.current_segments)
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._apply_segments_to_views(self._get_display_segments())
         self._update_navigator_markers()
         self._project_modified = True
         self._update_window_title()
@@ -3137,7 +3389,7 @@ class MainWindow(QMainWindow):
             return
 
         self._update_sample_table(self._pipeline_wrapper.current_segments)
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._apply_segments_to_views(self._get_display_segments())
         self._update_navigator_markers()
         self._project_modified = True
         self._update_window_title()
@@ -3146,7 +3398,8 @@ class MainWindow(QMainWindow):
     def _on_toggle_show_disabled(self, show: bool) -> None:
         """Toggle visibility of disabled samples in views."""
         self._spectrogram_widget.set_show_disabled(show)
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._waveform_widget.set_show_disabled(show)
+        self._apply_segments_to_views(self._get_display_segments())
         self._update_navigator_markers()
 
         # Mark as modified (sample disabled/enabled)
@@ -3218,7 +3471,7 @@ class MainWindow(QMainWindow):
         if not any_changed:
             return
 
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._apply_segments_to_views(self._get_display_segments())
         if len(normalized) == 1:
             self._sample_table_view.selectColumn(normalized[0])
         self._project_modified = True
@@ -3266,7 +3519,7 @@ class MainWindow(QMainWindow):
                 logger.debug("Failed to update sample enabled state: %s", exc, exc_info=exc)
 
         if any_changed:
-            self._spectrogram_widget.set_segments(self._get_display_segments())
+            self._apply_segments_to_views(self._get_display_segments())
             self._update_navigator_markers()
             self._project_modified = True
             self._update_window_title()
@@ -3316,7 +3569,7 @@ class MainWindow(QMainWindow):
             except (RuntimeError, ValueError) as exc:
                 logger.debug("Failed to update sample enabled state: %s", exc, exc_info=exc)
 
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._apply_segments_to_views(self._get_display_segments())
         self._update_navigator_markers()
 
         # Mark as modified (samples disabled/enabled)
@@ -3341,7 +3594,7 @@ class MainWindow(QMainWindow):
             del segments[idx]
 
         self._maybe_auto_reorder()
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._apply_segments_to_views(self._get_display_segments())
         self._update_sample_table(segments)
         self._update_navigator_markers()
 
@@ -3385,7 +3638,7 @@ class MainWindow(QMainWindow):
                 del segments[idx]
 
             self._maybe_auto_reorder()
-            self._spectrogram_widget.set_segments(self._get_display_segments())
+            self._apply_segments_to_views(self._get_display_segments())
             self._update_sample_table(segments)
             self._update_navigator_markers()
 
@@ -3473,7 +3726,7 @@ class MainWindow(QMainWindow):
                 segments.insert(adjusted_idx, merged_seg)
 
             self._maybe_auto_reorder()
-            self._spectrogram_widget.set_segments(self._get_display_segments())
+            self._apply_segments_to_views(self._get_display_segments())
             self._update_sample_table(segments)
             self._update_navigator_markers()
 
@@ -3522,7 +3775,7 @@ class MainWindow(QMainWindow):
                 del segments[idx]
 
             self._maybe_auto_reorder()
-            self._spectrogram_widget.set_segments(self._get_display_segments())
+            self._apply_segments_to_views(self._get_display_segments())
             self._update_sample_table(segments)
             self._update_navigator_markers()
 
@@ -3718,7 +3971,7 @@ class MainWindow(QMainWindow):
         self._pipeline_wrapper.current_segments = copy.deepcopy(previous_segments)
 
         # Update UI
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._apply_segments_to_views(self._get_display_segments())
         self._update_sample_table(self._pipeline_wrapper.current_segments)
         self._update_navigator_markers()
 
@@ -3746,7 +3999,7 @@ class MainWindow(QMainWindow):
         self._pipeline_wrapper.current_segments = copy.deepcopy(next_segments)
 
         # Update UI
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._apply_segments_to_views(self._get_display_segments())
         self._update_sample_table(self._pipeline_wrapper.current_segments)
         self._update_navigator_markers()
 
@@ -3872,7 +4125,7 @@ class MainWindow(QMainWindow):
             seg.attrs = {}
         seg.attrs["enabled"] = enabled
         # Reflect enabled update into other views
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._apply_segments_to_views(self._get_display_segments())
         # Force spectrogram canvas to refresh
         self._spectrogram_widget._canvas.draw_idle()
         self._update_navigator_markers()
@@ -3896,7 +4149,7 @@ class MainWindow(QMainWindow):
         self._sample_table_model.update_segment_times(column, seg.start, seg.end)
         # After start/end edits, reorder and refresh overlays
         self._maybe_auto_reorder()
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._apply_segments_to_views(self._get_display_segments())
         # Force spectrogram canvas to refresh
         self._spectrogram_widget._canvas.draw_idle()
         self._update_navigator_markers()
@@ -3917,7 +4170,7 @@ class MainWindow(QMainWindow):
         # Apply duration change according to current mode (this also updates the model)
         self._apply_duration_change(seg, new_duration, column)
         self._maybe_auto_reorder()
-        self._spectrogram_widget.set_segments(self._get_display_segments())
+        self._apply_segments_to_views(self._get_display_segments())
         # Force spectrogram canvas to refresh
         self._spectrogram_widget._canvas.draw_idle()
         self._update_navigator_markers()

@@ -31,6 +31,7 @@ class UIState:
     timeline_splitter_sizes: list[int] = field(default_factory=list)
     player_visible: bool = True
     info_table_visible: bool = True
+    waveform_visible: bool = True
 
 
 @dataclass
@@ -223,6 +224,7 @@ def save_project(project_data: ProjectData, path: Path) -> None:
             "timeline_splitter_sizes": project_data.ui_state.timeline_splitter_sizes,
             "player_visible": project_data.ui_state.player_visible,
             "info_table_visible": project_data.ui_state.info_table_visible,
+            "waveform_visible": project_data.ui_state.waveform_visible,
         },
     }
 
@@ -289,6 +291,7 @@ def load_project(path: Path) -> ProjectData:
         ),
         player_visible=bool(ui_state_data.get("player_visible", True)),
         info_table_visible=bool(ui_state_data.get("info_table_visible", True)),
+        waveform_visible=bool(ui_state_data.get("waveform_visible", True)),
     )
 
     project_data = ProjectData(

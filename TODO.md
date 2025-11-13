@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 26 items, P2: 15 items_
+_Summary: P0: 0 items, P1: 25 items, P2: 16 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -96,17 +96,16 @@ _Summary: P0: 0 items, P1: 26 items, P2: 15 items_
   - Acceptance: Single operation writes multiple formats per selected sample.
 
 ### UI Improvements
-- [ ] [P1] Add waveform view above spectrogram
-  - Add waveform view above spectrogram (below player) with a divider between. Waveform syncs with the current spectrogram view (time range and zoom).
-  - Allow hiding via dragging divider and/or View menu option "Show Waveform" (default on).
-  - Default height should be the same as the navigator bar below the spectrogram (minimum 60 pixels).
-  - Acceptance: Waveform view visible above spectrogram with divider; syncs with spectrogram view changes; can be hidden via divider drag or View menu toggle; default height matches navigator; state persists across sessions. [Docs Impact]
 - [ ] [P1] Add spectrogram scale options (linear/log/exp) and color maps
   - Real-time switchable scaling; selectable color schemes.
   - Acceptance: Scale and color map controls with immediate visual update. [Docs Impact]
 - [ ] [P2] Add waveform view toggle
   - Switch between spectrogram and waveform for precise edits.
   - Acceptance: Toggle control with synced selection and zoom.
+- [ ] [P2] Implement custom splitter handles for editor stack
+  - Keep independent divider handles for player, waveform, and spectrogram when collapsing views.
+  - Ensure collapsing the waveform by drag leaves a handle visible without resizing the player.
+  - Acceptance: Dragging the waveform divider to zero height keeps a visible handle, preserves player height, and persists across sessions.
 - [ ] [P1] Add filtering/search in sample table
   - Filter by name, detector, time range, or duration.
   - Acceptance: Text+facet filters reduce visible rows accordingly.

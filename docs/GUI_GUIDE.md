@@ -29,6 +29,7 @@ Autosave is enabled by default. If SpectroSampler detects an autosave newer than
 | --- | --- |
 | **Detection Settings (left panel)** | Detector choice, thresholds, timing limits, CPU worker count, denoise/filters, overlap defaults, detection trigger button. |
 | **Sample Player (top center)** | Metadata readout, play/pause/stop, next/previous navigation, loop toggle, scrub slider, and a playback line mirrored on the spectrogram. |
+| **Waveform Preview (above spectrogram)** | Downsampled amplitude view linked to the editor view; drag the divider to resize or collapse it, or toggle via **View → Show Waveform**. |
 | **Spectrogram Canvas (center)** | Zoom/pan view, draw or adjust sample regions, right-click for context actions (play, toggle enable/disable, rename/delete selections, center/fill, disable others), drag handles to resize. |
 | **Navigator Overview (below spectrogram)** | Miniature spectrogram with a draggable viewport rectangle for quick jumps. |
 | **Sample Table (bottom)** | Per-sample enable checkbox, optional Name text field (feeds export filenames), start/end/duration editing, detector info, quick actions (Center, Fill, Play, Delete). |
@@ -43,7 +44,7 @@ All splitters are draggable. Collapse the player or info table from the View men
 
 - **File** – Project lifecycle (new/open/save), audio import, recent files.
 - **Edit** – Undo/redo, re-run detection, auto sample ordering, bulk delete/disable, project-wide **Enable All Samples** / **Disable All Samples**, overlap/duplicate removal and merging, Duration Edits (expand/contract, stretch from start/end).
-- **View** – Zoom controls (including Zoom to Selection with `Ctrl+Shift+F`), toggle info table/player visibility, show disabled samples, refresh-rate limiter, grid settings, and theme selection (System/Dark/Light).
+- **View** – Zoom controls (including Zoom to Selection with `Ctrl+Shift+F`), toggle info table/player/waveform visibility, show disabled samples, refresh-rate limiter, grid settings, and theme selection (System/Dark/Light).
 - **Export** – Pre/post padding, format (WAV/FLAC), sample rate, bit depth, channels, peak normalization.
 - **Settings** – Autosave toggle/interval, clear recent projects/audio.
 - **Help** – Diagnostics panel (FFmpeg status, audio devices, environment), verbose logging toggle, and the about dialog.
@@ -141,6 +142,13 @@ Right-click any segment (or multi-selection) in the spectrogram to open the cont
 
 > Screenshot placeholder: `docs/images/sample-table.png`
 
+### 4.4 Waveform Preview
+
+- Shares the same view range as the spectrogram and highlights selected segments in lockstep.
+- Drag the horizontal divider between the player, waveform, and spectrogram to change heights (minimum 60 px).
+- Collapse or restore it from **View → Show Waveform**; the preference persists in user settings and project files.
+- Playback indicators mirror the spectrogram so you can align amplitude and spectral cues quickly.
+
 ---
 
 ## 5. Editing Samples
@@ -202,7 +210,7 @@ When ready, choose **File → Export Samples** (`Ctrl+E`). Only enabled (checked
 - **Unsaved Changes Prompt** – Closing the window or quitting the app with modifications opens a Save/Discard/Cancel dialog.
 - **Recent Lists** – Clear stale entries from Settings → Clear Recent Projects/Audio.
 - **Detection & Export Defaults** – Thresholds, timing guards, overlap behavior, and export format/padding/normalization choices persist per-user and reload with each project, so tweaking them once saves the preference for future sessions.
-- **Layout Preservation** – Splitter positions for the settings/editor, player, navigator, and info table are stored in the project file; collapsing a panel keeps it collapsed on reopen.
+- **Layout Preservation** – Splitter positions for the settings/editor, player/waveform/spectrogram stack, navigator, and info table are stored in the project file; collapsing a panel keeps it collapsed on reopen.
 
 Project files are plain JSON and include audio paths, detection/export settings, grid config, and window layout. If the referenced audio is missing, SpectroSampler prompts to relink it when opening the project.
 
@@ -211,7 +219,7 @@ Project files are plain JSON and include audio paths, detection/export settings,
 ## 8. Performance Tips
 
 - **Limit UI Refresh Rate** – View → Limit UI Refresh Rate, then choose a lower Hz value to reduce GPU/CPU load on dense projects.
-- **Hide Panels** – Temporarily hide the sample table or player from the View menu to focus resources on the spectrogram.
+- **Hide Panels** – Temporarily hide the sample table, waveform preview, or player from the View menu to focus resources on the spectrogram.
 - **Batch Clean-ups** – Use Edit → Disable All Samples or Delete All Samples before rerunning detection on a different configuration.
 - **Navigator** – Stay zoomed in for editing while relying on the navigator for coarse movement.
 
@@ -250,6 +258,7 @@ Run `spectrosampler-gui --verbose` to capture additional diagnostics in the cons
 | View | Zoom In / Out / Fit / Zoom to Selection | `Ctrl++`, `Ctrl+-`, `Ctrl+0`, `Ctrl+Shift+F` |
 |  | Toggle Snap | `G` |
 |  | Toggle Disabled Samples | `View → Show Disabled Samples` (no default shortcut) |
+|  | Toggle Waveform Preview | `View → Show Waveform` (no default shortcut) |
 | Navigation | Pan | Arrow keys or drag navigator |
 |  | Play Selected Sample | `Space` or double-click |
 |  | Seek Within Sample | Drag the player slider |

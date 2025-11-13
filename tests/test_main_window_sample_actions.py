@@ -115,3 +115,63 @@ def test_delete_samples_removes_columns_and_segments():
 
     window.deleteLater()
     app.processEvents()
+
+
+def test_waveform_toggle_updates_visibility():
+    app = _ensure_qapp()
+    window = MainWindow()
+    window.show()
+    app.processEvents()
+
+    if not window._show_waveform_action.isChecked():
+        window._on_toggle_waveform()
+        app.processEvents()
+
+    sizes = window._player_spectro_splitter.sizes()
+    assert len(sizes) == 3
+    assert sizes[1] > 0
+
+    window._on_toggle_waveform()
+    app.processEvents()
+
+    sizes_hidden = window._player_spectro_splitter.sizes()
+    assert sizes_hidden[1] <= window._waveform_collapsed_size
+    assert window._show_waveform_action.isChecked() is False
+
+    window._on_toggle_waveform()
+    app.processEvents()
+
+    sizes_restored = window._player_spectro_splitter.sizes()
+    assert window._show_waveform_action.isChecked()
+    assert sizes_restored[1] >= window._waveform_min_visible
+
+    window.deleteLater()
+    app.processEvents()
+
+
+def test_player_toggle_updates_splitter_sizes():
+    app = _ensure_qapp()
+    window = MainWindow()
+    window.show()
+    app.processEvents()
+
+    sizes = window._player_spectro_splitter.sizes()
+    assert len(sizes) == 3
+    assert sizes[0] > 0
+
+    window._on_toggle_player()
+    app.processEvents()
+    collapsed_sizes = window._player_spectro_splitter.sizes()
+    assert collapsed_sizes[0] == 0
+    assert collapsed_sizes[1] == sizes[1]
+    assert collapsed_sizes[2] > 0
+
+    window._on_toggle_player()
+    app.processEvents()
+    restored_sizes = window._player_spectro_splitter.sizes()
+    assert restored_sizes[0] > 0
+    assert restored_sizes[1] == sizes[1]
+    assert restored_sizes[2] > 0
+
+    window.deleteLater()
+    app.processEvents()

@@ -493,6 +493,7 @@ class SettingsManager:
 
         geometry["infoTableVisible"] = self._settings.value("infoTableVisible", True, type=bool)
         geometry["playerVisible"] = self._settings.value("playerVisible", True, type=bool)
+        geometry["waveformVisible"] = self._settings.value("waveformVisible", True, type=bool)
         return geometry
 
     def set_window_geometry(self, geometry: dict[str, Any]) -> None:
@@ -517,4 +518,6 @@ class SettingsManager:
             self._settings.setValue("infoTableVisible", geometry["infoTableVisible"])
         if "playerVisible" in geometry:
             self._settings.setValue("playerVisible", geometry["playerVisible"])
+        if "waveformVisible" in geometry:
+            self._settings.setValue("waveformVisible", geometry["waveformVisible"])
         self._settings.sync()

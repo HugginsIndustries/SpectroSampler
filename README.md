@@ -10,7 +10,7 @@ SpectroSampler is delivered as a GUI desktop app. Command-line usage is limited 
 
 - **Guided Workspace** – Welcome screen with recent projects/audio, autosave controls, and persistent window layout.
 - **Detection Engine** – Multiple detectors (auto mix, voice VAD, transient, non-silence energy, spectral interestingness) with per-mode thresholds, merge rules, gap/duration guards, and multi-core processing control (`CPU workers`). Voice VAD pre-filters audio with a configurable 200–4500 Hz band-pass before WebRTC scoring so speech-focused projects stay cleaner.
-- **Editing Surface** – High-resolution spectrogram (0.5×–32× zoom), navigator overview, draggable sample markers, context actions (play, enable/disable toggle, rename/delete selections, center/fill view), and lockable grid snapping (time or musical bars).
+- **Editing Surface** – High-resolution spectrogram (0.5×–32× zoom) backed by a synchronized waveform preview, navigator overview, draggable sample markers, context actions (play, enable/disable toggle, rename/delete selections, center/fill view), and lockable grid snapping (time or musical bars).
 - **Playback & Review** – Integrated sample player with looping, scrub bar, next/previous navigation, live playback indicator on the spectrogram, and sample table shortcuts (center/fill/play/delete).
 - **Export Pipeline** – Per-project format, sample rate, bit depth, channel configuration, padding, and optional peak normalization. Export selected samples without re-encoding by default (WAV/FLAC supported out of the box).
 - **Session Safety** – Project files capture every setting (including overlap resolution defaults and editor layout), autosave keeps rotating backups, the overlap dialog protects existing edits when re-running detection, and a Help → Diagnostics panel surfaces FFmpeg and audio device information for quick troubleshooting.
@@ -87,6 +87,7 @@ spectrosampler-gui --version          Show version and exit
 ### Workspace Layout
 - **Left panel** – Detection settings (mode, thresholds, timing rules, denoise/high/low-pass filters, auto-sample order, CPU workers).
 - **Top center** – Sample player: scrubbable transport, loop toggle, navigation controls, and live metadata.
+- **Waveform preview** – Time-aligned amplitude view sitting above the spectrogram with draggable splitter to resize or collapse (View → Show Waveform).
 - **Spectrogram canvas** – Zoom/pan, drag handles to edit sample bounds, create regions by dragging. Context menu adds disable/enable actions.
 - **Navigator overview** – Mini spectrogram for fast navigation, drag edges to resize view.
 - **Info table** – Grid of every detected sample with enable toggle, optional Name field (feeds export filenames), center/fill shortcuts, detector name, start/end/duration editing, and per-row delete.
@@ -95,7 +96,7 @@ spectrosampler-gui --version          Show version and exit
 - Autosave is on by default (Settings → Auto-save). Interval is configurable; autosaves live in the system temp directory.
 - Closing with unsaved edits prompts to save/discard.
 - Detection, export, and overlap-resolution defaults persist between sessions and reload when you reopen a project or restart the app, so your thresholds and conflict handling follow you automatically.
-- Splitter layouts (settings vs. editor, player vs. spectrogram, info table) restore exactly as saved, so collapsed panels stay collapsed when a project reopens.
+- Splitter layouts (settings vs. editor, player/waveform/spectrogram stack, info table) restore exactly as saved, so collapsed panels stay collapsed when a project reopens.
 - Recent projects/audio lists are available in the File menu and welcome screen; you can clear them via Settings → Clear Recent Projects/Audio.
 
 ### Running Detection
@@ -114,7 +115,7 @@ spectrosampler-gui --version          Show version and exit
 - Use **Duration Edits** (Edit menu) to expand/contract or stretch from start/end.
 - Re-order or re-rank samples automatically (Edit → Auto Sample Order / Re-order Samples), and use **Enable All Samples** / **Disable All Samples** for quick project-wide toggles.
 - Remove overlapping or duplicate samples (Edit → Remove All Overlaps / Remove All Duplicates) or merge overlapping samples into single samples (Edit → Merge All Overlaps) to clean up detection results.
-- Toggle display of disabled samples (View menu).
+- Toggle display of disabled samples and the waveform preview (View menu).
 - Switch between System, Dark, and Light themes (View → Theme); the choice persists between sessions via your local preferences.
 - Lock snap to grid or adjust BPM/subdivision (View → Grid Settings).
 - Limit UI refresh rate if working on large projects (View → Limit UI Refresh Rate → Refresh Rate).
@@ -184,6 +185,7 @@ Project saves capture:
 - Sample metadata (start/end/duration, detector name, enabled flag, per-sample Name)
 - Export configuration (format, rate, padding, channels, bit depth)
 - Grid settings, overlap dialog defaults, and UI layout (splitter sizes, panels hidden/shown)
+- Waveform preview visibility and height
 - Recent playback state (current view, zoom)
 - Preferred theme mode is stored per user (System/Dark/Light)
 

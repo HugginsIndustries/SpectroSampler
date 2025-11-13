@@ -2,7 +2,7 @@
   "version": "1.0",
   "spectrosampler_version": "0.1.0",
   "created": "2025-11-06T01:32:00.700707Z",
-  "modified": "2025-11-13T01:27:16.058408+00:00",
+  "modified": "2025-11-13T07:51:25.747045+00:00",
   "audio_path": "C:\\dev\\SamplePacker\\recordings\\field.WAV",
   "segments": [
     {
@@ -90,6 +90,42 @@
       "attrs": {
         "raw_start": 477.21,
         "raw_end": 479.25,
+        "enabled": true
+      }
+    },
+    {
+      "start": 538.3510346034609,
+      "end": 541.6034719125965,
+      "detector": "manual",
+      "score": 1.0,
+      "attrs": {
+        "enabled": true
+      }
+    },
+    {
+      "start": 747.134685728502,
+      "end": 751.1859672890042,
+      "detector": "manual",
+      "score": 1.0,
+      "attrs": {
+        "enabled": true
+      }
+    },
+    {
+      "start": 762.8605054196912,
+      "end": 768.9659579122792,
+      "detector": "manual",
+      "score": 1.0,
+      "attrs": {
+        "enabled": true
+      }
+    },
+    {
+      "start": 879.0470234535433,
+      "end": 887.377827789224,
+      "detector": "manual",
+      "score": 1.0,
+      "attrs": {
         "enabled": true
       }
     },
@@ -911,26 +947,28 @@
     "time_signature_denominator": 4
   },
   "ui_state": {
-    "view_start": 1053.057797819728,
-    "view_end": 1145.0960676378998,
+    "view_start": 878.6304832367592,
+    "view_end": 887.7943680060081,
     "zoom_level": 32.0,
     "editor_splitter_sizes": [
-      400,
+      557,
       100
     ],
     "player_splitter_sizes": [
       100,
-      290
+      40,
+      401
     ],
     "main_splitter_sizes": [
-      510,
+      667,
       324
     ],
     "timeline_splitter_sizes": [
-      300,
-      1092
+      299,
+      1613
     ],
     "player_visible": true,
-    "info_table_visible": true
+    "info_table_visible": true,
+    "waveform_visible": true
   }
 }
