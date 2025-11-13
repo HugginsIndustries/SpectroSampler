@@ -659,18 +659,6 @@ class MainWindow(QMainWindow):
 
         view_menu.addSeparator()
 
-        zoom_in_action = QAction("Zoom &In", self)
-        zoom_in_action.setShortcut(QKeySequence.StandardKey.ZoomIn)
-        zoom_in_action.triggered.connect(self._on_zoom_in)
-        view_menu.addAction(zoom_in_action)
-
-        zoom_out_action = QAction("Zoom &Out", self)
-        zoom_out_action.setShortcut(QKeySequence.StandardKey.ZoomOut)
-        zoom_out_action.triggered.connect(self._on_zoom_out)
-        view_menu.addAction(zoom_out_action)
-
-        view_menu.addSeparator()
-
         fit_action = QAction("&Fit to Window", self)
         fit_action.triggered.connect(self._on_fit_to_window)
         view_menu.addAction(fit_action)
@@ -3157,14 +3145,6 @@ class MainWindow(QMainWindow):
 
         dialog = DiagnosticsDialog(self, theme_manager=self._theme_manager)
         dialog.exec()
-
-    def _on_zoom_in(self) -> None:
-        """Handle zoom in."""
-        self._spectrogram_widget.set_zoom_level(self._spectrogram_widget._zoom_level * 1.5)
-
-    def _on_zoom_out(self) -> None:
-        """Handle zoom out."""
-        self._spectrogram_widget.set_zoom_level(self._spectrogram_widget._zoom_level / 1.5)
 
     def _on_fit_to_window(self) -> None:
         """Handle fit to window."""

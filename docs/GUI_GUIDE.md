@@ -44,7 +44,7 @@ All splitters are draggable. Collapse the player or info table from the View men
 
 - **File** – Project lifecycle (new/open/save), audio import, recent files.
 - **Edit** – Undo/redo, re-run detection, auto sample ordering, bulk delete/disable, project-wide **Enable All Samples** / **Disable All Samples**, overlap/duplicate removal and merging, Duration Edits (expand/contract, stretch from start/end).
-- **View** – Zoom controls (including Zoom to Selection with `Ctrl+Shift+F`), toggle info table/player/waveform visibility, show disabled samples, refresh-rate limiter, grid settings, and theme selection (System/Dark/Light).
+- **View** – Fit to Window, Zoom to Selection (`Ctrl+Shift+F`), toggle info table/player/waveform visibility, show disabled samples, refresh-rate limiter, grid settings, and theme selection (System/Dark/Light).
 - **Export** – Pre/post padding, format (WAV/FLAC), sample rate, bit depth, channels, peak normalization.
 - **Settings** – Autosave toggle/interval, clear recent projects/audio.
 - **Help** – Diagnostics panel (FFmpeg status, audio devices, environment), verbose logging toggle, and the about dialog.
@@ -255,7 +255,8 @@ Run `spectrosampler-gui --verbose` to capture additional diagnostics in the cons
 | Edit | Detect Samples | `Ctrl+D` |
 |  | Undo / Redo | `Ctrl+Z` / `Ctrl+Shift+Z` |
 |  | Delete Sample | `Delete` |
-| View | Zoom In / Out / Fit / Zoom to Selection | `Ctrl++`, `Ctrl+-`, `Ctrl+0`, `Ctrl+Shift+F` |
+| View | Fit to Window | `Ctrl+0` |
+|  | Zoom to Selection | `Ctrl+Shift+F` |
 |  | Toggle Snap | `G` |
 |  | Toggle Disabled Samples | `View → Show Disabled Samples` (no default shortcut) |
 |  | Toggle Waveform Preview | `View → Show Waveform` (no default shortcut) |

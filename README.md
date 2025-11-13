@@ -166,8 +166,7 @@ See `docs/DEVELOPER_API.md` for a module map, minimal script, and extension patt
 | Editing | Detect Samples | `Ctrl+D` |
 |  | Undo / Redo | `Ctrl+Z` / `Ctrl+Shift+Z` |
 |  | Delete Sample | `Delete` |
-| Navigation | Zoom In / Out | `Ctrl++` / `Ctrl+-` |
-|  | Fit to Window | `Ctrl+0` |
+| Navigation | Fit to Window | `Ctrl+0` |
 |  | Zoom to Selection | `Ctrl+Shift+F` |
 |  | Pan | Arrow keys or drag in navigator |
 |  | Play Sample | `Space` (double-click sample) |

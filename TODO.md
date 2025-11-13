@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 24 items, P2: 13 items_
+_Summary: P0: 0 items, P1: 23 items, P2: 13 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -61,13 +61,6 @@ _Summary: P0: 0 items, P1: 24 items, P2: 13 items_
   - Identify and fix race conditions, missing undo state pushes, or incorrect state restoration that cause sync issues.
   - Add validation to ensure undo/redo stacks remain consistent with actual segment state.
   - Acceptance: Undo/redo remains in sync across all actions; no state inconsistencies occur; undo/redo actions correctly restore previous states regardless of action sequence.
-- [ ] [P1] Remove broken Ctrl++ and Ctrl+- zoom shortcuts and View menu options
-  - Remove "Zoom In" and "Zoom Out" menu items from View menu and their associated keyboard shortcuts (Ctrl++ and Ctrl+-) as they don't work and are unnecessary.
-  - Remove `_on_zoom_in()` and `_on_zoom_out()` handler methods and related action definitions.
-  - Update README.md to remove these shortcuts from the Keyboard Shortcuts table.
-  - Ensure changes do not break existing functional zooming methods (scroll wheel and navigator highlight).
-  - Acceptance: Zoom In/Out menu items and shortcuts removed; README updated; scroll wheel zoom and navigator highlight zoom remain functional; no broken functionality remains. [Docs Impact]
-
 ### Processing Pipeline
 - [ ] [P2] Configure audio cache lifecycle (from `spectrosampler/pipeline.py:Pipeline.__init__`)
   - Acceptance:
