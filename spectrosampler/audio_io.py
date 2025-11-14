@@ -354,7 +354,9 @@ def extract_sample(
     def _bandpass_filter_list() -> list[str]:
         filters: list[str] = []
         if bp_low is not None and bp_high is not None:
-            filters.append(f"bandpass=low={bp_low}:high={bp_high}")
+            # Use highpass and lowpass filters chained together for reliable bandpass
+            filters.append(f"highpass=f={bp_low}")
+            filters.append(f"lowpass=f={bp_high}")
         elif bp_low is not None:
             filters.append(f"highpass=f={bp_low}")
         elif bp_high is not None:

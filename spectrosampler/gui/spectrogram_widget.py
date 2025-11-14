@@ -68,8 +68,8 @@ class SpectrogramWidget(QWidget):
             "marker_transient": QColor(0xFF, 0xCC, 0x00, 0x80),
             "marker_nonsilence": QColor(0xFF, 0x66, 0xAA, 0x80),
             "marker_spectral": QColor(0x66, 0xAA, 0xFF, 0x80),
-            "selection": QColor(0x00, 0x78, 0xD4, 0xA0),
-            "selection_border": QColor(0x00, 0x78, 0xD4),
+            "selection": QColor(0xEF, 0x7F, 0x22, 0xA0),
+            "selection_border": QColor(0xEF, 0x7F, 0x22),
         }
 
         # Spectrogram data/state placeholders (initialized early to allow theme calls)
@@ -774,8 +774,8 @@ class SpectrogramWidget(QWidget):
             line_style = "-"
             if self._playback_segment_index == i:
                 edge_color = self._color_to_hex(
-                    self._theme_colors.get("selection_border", "#00BCD4"),
-                    default="#00BCD4",
+                    self._theme_colors.get("selection_border", "#EF7F22"),
+                    default="#EF7F22",
                 )
                 alpha = max(alpha, 0.4)
                 if self._playback_paused:

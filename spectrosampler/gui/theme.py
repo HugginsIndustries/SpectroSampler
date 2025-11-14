@@ -54,9 +54,9 @@ class ThemeManager(QObject):
             "background_secondary": QColor(0x25, 0x25, 0x26),
             "background_tertiary": QColor(0x2D, 0x2D, 0x30),
             # Accent colors
-            "accent": QColor(0x00, 0x78, 0xD4),
+            "accent": QColor(0xEF, 0x7F, 0x22),
             "accent_secondary": QColor(0x00, 0xFF, 0x6A),
-            "accent_hover": QColor(0x00, 0x9E, 0xDD),
+            "accent_hover": QColor(0xFF, 0x9F, 0x42),
             # Text colors
             "text": QColor(0xCC, 0xCC, 0xCC),
             "text_secondary": QColor(0x99, 0x99, 0x99),
@@ -65,8 +65,8 @@ class ThemeManager(QObject):
             "border": QColor(0x3C, 0x3C, 0x3C),
             "border_light": QColor(0x45, 0x45, 0x45),
             # Selection colors
-            "selection": QColor(0x00, 0x78, 0xD4, 0x80),
-            "selection_border": QColor(0x00, 0x78, 0xD4),
+            "selection": QColor(0xEF, 0x7F, 0x22, 0x80),
+            "selection_border": QColor(0xEF, 0x7F, 0x22),
             # Grid colors
             "grid": QColor(0x3C, 0x3C, 0x3C, 0x80),
             "grid_major": QColor(0x45, 0x45, 0x45, 0xA0),
@@ -85,9 +85,9 @@ class ThemeManager(QObject):
             "background_secondary": QColor(0xFF, 0xFF, 0xFF),
             "background_tertiary": QColor(0xEB, 0xEC, 0xEF),
             # Accent colors
-            "accent": QColor(0x00, 0x55, 0xA4),
+            "accent": QColor(0xEF, 0x7F, 0x22),
             "accent_secondary": QColor(0x00, 0x8A, 0x5C),
-            "accent_hover": QColor(0x22, 0x74, 0xC5),
+            "accent_hover": QColor(0xFF, 0x9F, 0x42),
             # Text colors
             "text": QColor(0x25, 0x25, 0x25),
             "text_secondary": QColor(0x55, 0x55, 0x55),
@@ -96,8 +96,8 @@ class ThemeManager(QObject):
             "border": QColor(0xC9, 0xCC, 0xD1),
             "border_light": QColor(0xD9, 0xDC, 0xE0),
             # Selection colors
-            "selection": QColor(0x00, 0x55, 0xA4, 0x40),
-            "selection_border": QColor(0x00, 0x55, 0xA4),
+            "selection": QColor(0xEF, 0x7F, 0x22, 0x40),
+            "selection_border": QColor(0xEF, 0x7F, 0x22),
             # Grid colors
             "grid": QColor(0xB0, 0xB5, 0xBC, 0x80),
             "grid_major": QColor(0x90, 0x96, 0x9E, 0xA0),

@@ -70,6 +70,11 @@ class OverlapResolutionDialog(QDialog):
 
         self.setLayout(main_layout)
 
+        # Apply checkbox styling
+        from spectrosampler.gui.ui_utils import apply_checkbox_styling_to_all_checkboxes
+
+        apply_checkbox_styling_to_all_checkboxes(self)
+
     def result_choice(self) -> tuple[str, bool] | None:
         """Return (behavior, remember) or None if canceled.
 

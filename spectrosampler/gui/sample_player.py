@@ -1,7 +1,10 @@
 """Sample player widget showing selected sample info and playback controls."""
 
-from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor
+from pathlib import Path
+
+from PySide6.QtCore import QSize, Qt, Signal
+from PySide6.QtGui import QColor, QIcon, QPainter, QPixmap
+from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
     QCheckBox,
     QHBoxLayout,
@@ -57,6 +60,9 @@ class SamplePlayerWidget(QWidget):
             "text_secondary": QColor(0x99, 0x99, 0x99),
         }
 
+        # Load icons
+        self._load_icons()
+
         # Setup UI
         self._setup_ui()
 
@@ -105,21 +111,27 @@ class SamplePlayerWidget(QWidget):
         controls_layout.setSpacing(8)
 
         # Previous button
-        self._prev_button = QPushButton("◀◀")
+        self._prev_button = QPushButton()
+        self._prev_button.setIcon(self._skip_back_icon)
+        self._prev_button.setIconSize(QSize(24, 24))
         self._prev_button.setToolTip("Previous sample")
         self._prev_button.setMaximumWidth(50)
         self._prev_button.clicked.connect(self._on_previous_clicked)
         controls_layout.addWidget(self._prev_button)
 
         # Play button
-        self._play_button = QPushButton("▶")
+        self._play_button = QPushButton()
+        self._play_button.setIcon(self._play_icon)
+        self._play_button.setIconSize(QSize(24, 24))
         self._play_button.setToolTip("Play")
         self._play_button.setMaximumWidth(60)
         self._play_button.clicked.connect(self._on_play_clicked)
         controls_layout.addWidget(self._play_button)
 
         # Pause button
-        self._pause_button = QPushButton("⏸")
+        self._pause_button = QPushButton()
+        self._pause_button.setIcon(self._pause_icon)
+        self._pause_button.setIconSize(QSize(24, 24))
         self._pause_button.setToolTip("Pause")
         self._pause_button.setMaximumWidth(60)
         self._pause_button.clicked.connect(self._on_pause_clicked)
@@ -127,14 +139,18 @@ class SamplePlayerWidget(QWidget):
         controls_layout.addWidget(self._pause_button)
 
         # Stop button
-        self._stop_button = QPushButton("■")
+        self._stop_button = QPushButton()
+        self._stop_button.setIcon(self._stop_icon)
+        self._stop_button.setIconSize(QSize(32, 32))  # Larger than other icons
         self._stop_button.setToolTip("Stop")
         self._stop_button.setMaximumWidth(50)
         self._stop_button.clicked.connect(self._on_stop_clicked)
         controls_layout.addWidget(self._stop_button)
 
         # Next button
-        self._next_button = QPushButton("▶▶")
+        self._next_button = QPushButton()
+        self._next_button.setIcon(self._skip_forward_icon)
+        self._next_button.setIconSize(QSize(24, 24))
         self._next_button.setToolTip("Next sample")
         self._next_button.setMaximumWidth(50)
         self._next_button.clicked.connect(self._on_next_clicked)
@@ -188,8 +204,37 @@ class SamplePlayerWidget(QWidget):
 
         self.setLayout(layout)
 
+        # Apply checkbox styling
+        from spectrosampler.gui.ui_utils import apply_checkbox_styling_to_all_checkboxes
+
+        apply_checkbox_styling_to_all_checkboxes(self)
+
         # Update initial state
         self._update_display()
+
+    def _load_icons(self) -> None:
+        """Load SVG icons from assets folder, preserving colors."""
+        assets_dir = Path(__file__).parent.parent.parent / "assets"
+        icon_size = 24  # Base size, can be adjusted
+        stop_icon_size = 32  # Larger size for stop icon
+
+        def load_svg_icon(path: Path, size: int = icon_size) -> QIcon:
+            """Load SVG icon preserving colors by rendering to pixmap."""
+            if not path.exists():
+                return QIcon()
+            renderer = QSvgRenderer(str(path))
+            pixmap = QPixmap(size, size)
+            pixmap.fill(Qt.GlobalColor.transparent)
+            painter = QPainter(pixmap)
+            renderer.render(painter)
+            painter.end()
+            return QIcon(pixmap)
+
+        self._play_icon = load_svg_icon(assets_dir / "play.svg")
+        self._pause_icon = load_svg_icon(assets_dir / "pause.svg")
+        self._stop_icon = load_svg_icon(assets_dir / "stop.svg", size=stop_icon_size)
+        self._skip_back_icon = load_svg_icon(assets_dir / "skipBack.svg")
+        self._skip_forward_icon = load_svg_icon(assets_dir / "skipForward.svg")
 
     def set_sample(self, segment: Segment | None, index: int | None, total: int) -> None:
         """Set current sample to display.

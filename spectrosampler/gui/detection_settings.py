@@ -113,6 +113,15 @@ class DetectionSettingsPanel(QWidget):
         layout.addWidget(scroll)
         self.setLayout(layout)
         self._refresh_validation_state()
+
+        # Apply dropdown arrow styling to all QComboBox widgets
+        from spectrosampler.gui.ui_utils import (
+            apply_checkbox_styling_to_all_checkboxes,
+            apply_combo_styling_to_all_combos,
+        )
+
+        apply_combo_styling_to_all_combos(self)
+        apply_checkbox_styling_to_all_checkboxes(self)
         self._load_persisted_settings()
 
     def _create_detection_group(self) -> QGroupBox:

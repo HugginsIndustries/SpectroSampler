@@ -128,6 +128,16 @@ class ExportDialog(QDialog):
 
         self._build_global_page()
         self._build_samples_page()
+
+        # Apply dropdown arrow styling to all QComboBox widgets (after pages are built)
+        from spectrosampler.gui.ui_utils import (
+            apply_checkbox_styling_to_all_checkboxes,
+            apply_combo_styling_to_all_combos,
+        )
+
+        apply_combo_styling_to_all_combos(self)
+        apply_checkbox_styling_to_all_checkboxes(self)
+
         self._apply_batch_settings_to_ui()
         self._update_navigation_state()
         self._schedule_preview_refresh()
@@ -378,9 +388,10 @@ class ExportDialog(QDialog):
         overrides_group = QGroupBox("Per-sample Overrides")
         overrides_form = QFormLayout()
 
-        self._override_pre_pad_checkbox = QCheckBox("Override")
+        self._override_pre_pad_checkbox = QCheckBox("Override Global")
         self._override_pre_pad_checkbox.stateChanged.connect(self._on_override_pre_pad_toggled)
         self._override_pre_pad_spin = self._create_padding_spinbox()
+        self._override_pre_pad_spin.setEnabled(True)  # Always editable
         self._override_pre_pad_spin.valueChanged.connect(self._on_override_pre_pad_changed)
         pre_pad_widget = QWidget()
         pre_pad_layout = QHBoxLayout(pre_pad_widget)
@@ -389,9 +400,10 @@ class ExportDialog(QDialog):
         pre_pad_layout.addWidget(self._override_pre_pad_spin)
         overrides_form.addRow("Pre-padding (ms)", pre_pad_widget)
 
-        self._override_post_pad_checkbox = QCheckBox("Override")
+        self._override_post_pad_checkbox = QCheckBox("Override Global")
         self._override_post_pad_checkbox.stateChanged.connect(self._on_override_post_pad_toggled)
         self._override_post_pad_spin = self._create_padding_spinbox()
+        self._override_post_pad_spin.setEnabled(True)  # Always editable
         self._override_post_pad_spin.valueChanged.connect(self._on_override_post_pad_changed)
         post_pad_widget = QWidget()
         post_pad_layout = QHBoxLayout(post_pad_widget)
@@ -401,7 +413,7 @@ class ExportDialog(QDialog):
         overrides_form.addRow("Post-padding (ms)", post_pad_widget)
 
         self._override_normalize_combo = QComboBox()
-        self._override_normalize_combo.addItems(["Use global", "Force enabled", "Force disabled"])
+        self._override_normalize_combo.addItems(["Use Global Setting", "Enabled", "Disabled"])
         self._override_normalize_combo.currentIndexChanged.connect(
             self._on_override_normalize_changed
         )
@@ -410,11 +422,14 @@ class ExportDialog(QDialog):
         validator = QDoubleValidator(0.0, 200000.0, 2, self)
         validator.setNotation(QDoubleValidator.Notation.StandardNotation)
 
-        bandpass_widget = QWidget()
-        bandpass_layout = QHBoxLayout(bandpass_widget)
-        bandpass_layout.setContentsMargins(0, 0, 0, 0)
-        self._override_bandpass_checkbox = QCheckBox("Override")
-        self._override_bandpass_checkbox.stateChanged.connect(self._on_override_bandpass_toggled)
+        self._override_bandpass_combo = QComboBox()
+        self._override_bandpass_combo.addItems(["Use Global Setting", "Enabled", "Disabled"])
+        self._override_bandpass_combo.currentIndexChanged.connect(
+            self._on_override_bandpass_combo_changed
+        )
+        bandpass_fields_widget = QWidget()
+        bandpass_fields_layout = QHBoxLayout(bandpass_fields_widget)
+        bandpass_fields_layout.setContentsMargins(0, 0, 0, 0)
         self._override_bandpass_low = QLineEdit()
         self._override_bandpass_low.setFocusPolicy(Qt.FocusPolicy.StrongFocus)
         self._override_bandpass_low.setPlaceholderText("Low (Hz)")
@@ -427,10 +442,10 @@ class ExportDialog(QDialog):
         self._override_bandpass_high.setValidator(validator)
         self._override_bandpass_high.setText("20000")
         self._override_bandpass_high.textChanged.connect(self._on_override_bandpass_changed)
-        bandpass_layout.addWidget(self._override_bandpass_checkbox)
-        bandpass_layout.addWidget(self._override_bandpass_low)
-        bandpass_layout.addWidget(self._override_bandpass_high)
-        overrides_form.addRow("Bandpass (Hz)", bandpass_widget)
+        bandpass_fields_layout.addWidget(self._override_bandpass_low)
+        bandpass_fields_layout.addWidget(self._override_bandpass_high)
+        overrides_form.addRow("Bandpass (Hz)", self._override_bandpass_combo)
+        overrides_form.addRow("", bandpass_fields_widget)
 
         self._sample_notes_edit = QPlainTextEdit()
         self._sample_notes_edit.setPlaceholderText("Add notes here...")
@@ -554,13 +569,6 @@ class ExportDialog(QDialog):
         if not enabled:
             self._bandpass_low_edit.clearFocus()
             self._bandpass_high_edit.clearFocus()
-
-    def _toggle_override_bandpass_fields(self, enabled: bool) -> None:
-        """Enable or disable override bandpass fields."""
-
-        if not enabled:
-            self._override_bandpass_low.clearFocus()
-            self._override_bandpass_high.clearFocus()
 
     def _update_navigation_state(self) -> None:
         """Refresh navigation controls for the Samples tab."""
@@ -725,13 +733,12 @@ class ExportDialog(QDialog):
 
     def _on_override_pre_pad_toggled(self, state: int) -> None:
         enabled = state == Qt.CheckState.Checked
-        self._override_pre_pad_spin.setEnabled(enabled)
         sample_id = self._current_sample_id()
         if not sample_id:
             return
         if enabled:
             self._set_override_field(
-                sample_id, "pre_pad_ms", float(self._override_pre_pad_spin.value())
+                sample_id, "pre_pad_ms", float(self._override_pre_pad_spin.value()), prune=False
             )
         else:
             self._set_override_field(sample_id, "pre_pad_ms", None, prune=True)
@@ -739,24 +746,25 @@ class ExportDialog(QDialog):
         self._refresh_current_filename_preview()
 
     def _on_override_pre_pad_changed(self, value: float) -> None:
-        if self._updating_controls or not self._override_pre_pad_checkbox.isChecked():
+        if self._updating_controls:
+            return
+        if not self._override_pre_pad_checkbox.isChecked():
             return
         sample_id = self._current_sample_id()
         if not sample_id:
             return
-        self._set_override_field(sample_id, "pre_pad_ms", float(value))
+        self._set_override_field(sample_id, "pre_pad_ms", float(value), prune=False)
         self._schedule_preview_refresh()
         self._refresh_current_filename_preview()
 
     def _on_override_post_pad_toggled(self, state: int) -> None:
         enabled = state == Qt.CheckState.Checked
-        self._override_post_pad_spin.setEnabled(enabled)
         sample_id = self._current_sample_id()
         if not sample_id:
             return
         if enabled:
             self._set_override_field(
-                sample_id, "post_pad_ms", float(self._override_post_pad_spin.value())
+                sample_id, "post_pad_ms", float(self._override_post_pad_spin.value()), prune=False
             )
         else:
             self._set_override_field(sample_id, "post_pad_ms", None, prune=True)
@@ -764,12 +772,14 @@ class ExportDialog(QDialog):
         self._refresh_current_filename_preview()
 
     def _on_override_post_pad_changed(self, value: float) -> None:
-        if self._updating_controls or not self._override_post_pad_checkbox.isChecked():
+        if self._updating_controls:
+            return
+        if not self._override_post_pad_checkbox.isChecked():
             return
         sample_id = self._current_sample_id()
         if not sample_id:
             return
-        self._set_override_field(sample_id, "post_pad_ms", float(value))
+        self._set_override_field(sample_id, "post_pad_ms", float(value), prune=False)
         self._schedule_preview_refresh()
         self._refresh_current_filename_preview()
 
@@ -779,28 +789,41 @@ class ExportDialog(QDialog):
         sample_id = self._current_sample_id()
         if not sample_id:
             return
-        if index == 0:
+        if index == 0:  # Use Global Setting
             self._set_override_field(sample_id, "normalize", None, prune=True)
-        else:
-            self._set_override_field(sample_id, "normalize", index == 1)
+        elif index == 1:  # Enabled
+            self._set_override_field(sample_id, "normalize", True, prune=False)
+        else:  # Disabled
+            self._set_override_field(sample_id, "normalize", False, prune=False)
         self._schedule_preview_refresh()
         self._refresh_current_filename_preview()
 
-    def _on_override_bandpass_toggled(self, state: int) -> None:
-        enabled = state == Qt.CheckState.Checked
-        self._toggle_override_bandpass_fields(enabled)
-        if enabled:
-            self._on_override_bandpass_changed()
+    def _on_override_bandpass_combo_changed(self, index: int) -> None:
+        if self._updating_controls:
+            return
         sample_id = self._current_sample_id()
         if not sample_id:
             return
-        if not enabled:
+        if index == 0:  # Use Global Setting
+            self._override_bandpass_low.setEnabled(False)
+            self._override_bandpass_high.setEnabled(False)
             self._set_override_field(sample_id, "bandpass_low_hz", None, prune=False)
             self._set_override_field(sample_id, "bandpass_high_hz", None, prune=True)
+        elif index == 1:  # Enabled
+            self._override_bandpass_low.setEnabled(True)
+            self._override_bandpass_high.setEnabled(True)
+            self._on_override_bandpass_changed()
+        else:  # Disabled - use sentinel value -1.0 to indicate disabled
+            self._override_bandpass_low.setEnabled(False)
+            self._override_bandpass_high.setEnabled(False)
+            self._set_override_field(sample_id, "bandpass_low_hz", -1.0, prune=False)
+            self._set_override_field(sample_id, "bandpass_high_hz", -1.0, prune=False)
         self._schedule_preview_refresh()
 
     def _on_override_bandpass_changed(self) -> None:
-        if self._updating_controls or not self._override_bandpass_checkbox.isChecked():
+        if self._updating_controls:
+            return
+        if self._override_bandpass_combo.currentIndex() != 1:  # Only apply if "Enabled"
             return
         sample_id = self._current_sample_id()
         if not sample_id:
@@ -810,7 +833,7 @@ class ExportDialog(QDialog):
         low_val = float(low_text) if low_text else None
         high_val = float(high_text) if high_text else None
         self._set_override_field(sample_id, "bandpass_low_hz", low_val, prune=False)
-        self._set_override_field(sample_id, "bandpass_high_hz", high_val, prune=True)
+        self._set_override_field(sample_id, "bandpass_high_hz", high_val, prune=False)
         self._schedule_preview_refresh()
 
     def _on_override_title_toggled(self, state: int) -> None:
@@ -831,7 +854,7 @@ class ExportDialog(QDialog):
         else:
             sanitized = sanitize_filename(self._override_title_edit.text().strip())
             self._override_title_edit.setText(sanitized)
-            self._set_override_field(sample_id, "filename", sanitized, prune=False)
+            # Only set title, not filename - filename uses template with {title} token
             self._set_override_field(sample_id, "title", sanitized, prune=False)
             self._override_title_edit.setFocus()
         self._override_title_edit.blockSignals(False)
@@ -849,7 +872,7 @@ class ExportDialog(QDialog):
             self._override_title_edit.blockSignals(True)
             self._override_title_edit.setText(sanitized)
             self._override_title_edit.blockSignals(False)
-        self._set_override_field(sample_id, "filename", sanitized, prune=False)
+        # Only set title, not filename - filename uses template with {title} token
         self._set_override_field(sample_id, "title", sanitized, prune=False)
         self._update_filename_preview(sample_id, self._current_segment(), self._current_index)
         self._schedule_preview_refresh()
@@ -866,15 +889,54 @@ class ExportDialog(QDialog):
     # Samples tab navigation
     # ------------------------------------------------------------------ #
 
+    def _save_current_sample_state(self) -> None:
+        """Save the current sample's override state before navigating away."""
+        sample_id = self._current_sample_id()
+        if not sample_id:
+            return
+        # Save title if custom (only set title, not filename - filename uses template)
+        if self._override_title_checkbox.isChecked():
+            title_text = self._override_title_edit.text().strip()
+            sanitized = sanitize_filename(title_text) if title_text else ""
+            self._set_override_field(sample_id, "title", sanitized or None, prune=False)
+            # Don't set filename - let the template use the title token
+        # Save padding if override is checked
+        if self._override_pre_pad_checkbox.isChecked():
+            self._set_override_field(
+                sample_id, "pre_pad_ms", float(self._override_pre_pad_spin.value()), prune=False
+            )
+        if self._override_post_pad_checkbox.isChecked():
+            self._set_override_field(
+                sample_id, "post_pad_ms", float(self._override_post_pad_spin.value()), prune=False
+            )
+        # Save bandpass if override is enabled
+        bandpass_index = self._override_bandpass_combo.currentIndex()
+        if bandpass_index == 0:  # Use Global Setting
+            self._set_override_field(sample_id, "bandpass_low_hz", None, prune=False)
+            self._set_override_field(sample_id, "bandpass_high_hz", None, prune=True)
+        elif bandpass_index == 1:  # Enabled
+            low_text = self._override_bandpass_low.text().strip()
+            high_text = self._override_bandpass_high.text().strip()
+            low_val = float(low_text) if low_text else None
+            high_val = float(high_text) if high_text else None
+            self._set_override_field(sample_id, "bandpass_low_hz", low_val, prune=False)
+            self._set_override_field(sample_id, "bandpass_high_hz", high_val, prune=False)
+        else:  # Disabled - use sentinel value -1.0
+            self._set_override_field(sample_id, "bandpass_low_hz", -1.0, prune=False)
+            self._set_override_field(sample_id, "bandpass_high_hz", -1.0, prune=False)
+        # Notes are saved automatically via textChanged signal
+
     def _on_previous_sample(self) -> None:
         if self._current_index <= 0:
             return
+        self._save_current_sample_state()
         self._current_index -= 1
         self._update_navigation_state()
 
     def _on_next_sample(self) -> None:
         if self._current_index >= len(self._segments) - 1:
             return
+        self._save_current_sample_state()
         self._current_index += 1
         self._update_navigation_state()
 
@@ -1027,13 +1089,11 @@ class ExportDialog(QDialog):
         pre_pad_override = override.pre_pad_ms if override else None
         post_pad_override = override.post_pad_ms if override else None
         self._override_pre_pad_checkbox.setChecked(pre_pad_override is not None)
-        self._override_pre_pad_spin.setEnabled(pre_pad_override is not None)
         self._override_pre_pad_spin.setValue(
             pre_pad_override if pre_pad_override is not None else default_pre
         )
 
         self._override_post_pad_checkbox.setChecked(post_pad_override is not None)
-        self._override_post_pad_spin.setEnabled(post_pad_override is not None)
         self._override_post_pad_spin.setValue(
             post_pad_override if post_pad_override is not None else default_post
         )
@@ -1043,41 +1103,63 @@ class ExportDialog(QDialog):
             normalize_index = 1 if override.normalize else 2
         self._override_normalize_combo.setCurrentIndex(normalize_index)
 
-        bandpass_override = override and (
-            override.bandpass_low_hz is not None or override.bandpass_high_hz is not None
-        )
-        self._override_bandpass_checkbox.setChecked(bool(bandpass_override))
-        self._toggle_override_bandpass_fields(bool(bandpass_override))
-        self._override_bandpass_low.setText(
-            ""
-            if not override or override.bandpass_low_hz is None
-            else str(override.bandpass_low_hz)
-        )
-        self._override_bandpass_high.setText(
-            ""
-            if not override or override.bandpass_high_hz is None
-            else str(override.bandpass_high_hz)
-        )
+        bandpass_index = 0
+        if override:
+            # Check for disabled sentinel (-1.0)
+            if override.bandpass_low_hz == -1.0 and override.bandpass_high_hz == -1.0:
+                bandpass_index = 2  # Disabled
+            elif override.bandpass_low_hz is not None and override.bandpass_high_hz is not None:
+                # Only treat as enabled if both values are set and not sentinel
+                if override.bandpass_low_hz != -1.0 and override.bandpass_high_hz != -1.0:
+                    bandpass_index = 1  # Enabled
+        self._override_bandpass_combo.setCurrentIndex(bandpass_index)
+        if bandpass_index == 1:  # Enabled
+            self._override_bandpass_low.setEnabled(True)
+            self._override_bandpass_high.setEnabled(True)
+            # Show override values if they exist, otherwise global values, otherwise defaults
+            low_val = None
+            high_val = None
+            if (
+                override
+                and override.bandpass_low_hz is not None
+                and override.bandpass_low_hz != -1.0
+            ):
+                low_val = override.bandpass_low_hz
+            elif self._batch_settings.bandpass_low_hz is not None:
+                low_val = self._batch_settings.bandpass_low_hz
+            else:
+                low_val = 20.0
+            if (
+                override
+                and override.bandpass_high_hz is not None
+                and override.bandpass_high_hz != -1.0
+            ):
+                high_val = override.bandpass_high_hz
+            elif self._batch_settings.bandpass_high_hz is not None:
+                high_val = self._batch_settings.bandpass_high_hz
+            else:
+                high_val = 20000.0
+            self._override_bandpass_low.setText(str(low_val))
+            self._override_bandpass_high.setText(str(high_val))
+        else:
+            self._override_bandpass_low.setEnabled(False)
+            self._override_bandpass_high.setEnabled(False)
+            # Show global values or defaults
+            global_low = self._batch_settings.bandpass_low_hz
+            global_high = self._batch_settings.bandpass_high_hz
+            self._override_bandpass_low.setText(str(global_low) if global_low is not None else "20")
+            self._override_bandpass_high.setText(
+                str(global_high) if global_high is not None else "20000"
+            )
 
         default_title = self._default_title(self._current_index, segment) if segment else ""
-        is_custom_title = bool(
-            override
-            and (
-                override.title is not None
-                or (override.filename is not None and override.filename != "")
-            )
-        )
+        is_custom_title = bool(override and override.title is not None)
         self._override_title_checkbox.blockSignals(True)
         self._override_title_checkbox.setChecked(is_custom_title)
         self._override_title_checkbox.blockSignals(False)
         self._override_title_edit.blockSignals(True)
         if is_custom_title:
-            custom_name = ""
-            if override:
-                if override.filename:
-                    custom_name = override.filename
-                elif override.title:
-                    custom_name = override.title
+            custom_name = override.title if override and override.title else ""
             self._override_title_edit.setText(custom_name)
         else:
             self._override_title_edit.setText(default_title)
@@ -1264,6 +1346,11 @@ class ExportDialog(QDialog):
 
         low_hz = effective["bandpass_low_hz"]
         high_hz = effective["bandpass_high_hz"]
+        # Convert sentinel value -1.0 (disabled) to None
+        if low_hz == -1.0:
+            low_hz = None
+        if high_hz == -1.0:
+            high_hz = None
         if (low_hz is not None or high_hz is not None) and audio.size > 0:
             try:
                 low_val = float(low_hz) if low_hz is not None else 0.0
@@ -1305,7 +1392,7 @@ class ExportDialog(QDialog):
 
         max_abs = max(1e-6, max(abs(max(peaks_pos, default=0.0)), abs(min(peaks_neg, default=0.0))))
         scale = (height / 2.0 - 4.0) / max_abs
-        painter.setPen(QColor("#5CAFF2"))
+        painter.setPen(QColor("#EF7F22"))
         for idx, (pos, neg) in enumerate(zip(peaks_pos, peaks_neg, strict=True)):
             x = idx
             y_high = mid_y - pos * scale
@@ -1314,6 +1401,27 @@ class ExportDialog(QDialog):
 
         painter.end()
         return pixmap
+
+    def _build_colormap_lut(self) -> np.ndarray:
+        """Build a 256-entry viridis-like RGBA lookup table matching main spectrogram."""
+        # Key color stops sampled from viridis gradient (approximate)
+        stops = np.array(
+            [
+                [68, 1, 84, 255],
+                [58, 82, 139, 255],
+                [32, 144, 140, 255],
+                [94, 201, 97, 255],
+                [253, 231, 37, 255],
+            ],
+            dtype=np.float32,
+        )
+        positions = np.linspace(0.0, 1.0, len(stops), dtype=np.float32)
+        samples = np.linspace(0.0, 1.0, 256, dtype=np.float32)
+        lut = np.empty((256, 4), dtype=np.uint8)
+        for channel in range(4):
+            channel_values = np.interp(samples, positions, stops[:, channel])
+            lut[:, channel] = np.clip(channel_values, 0, 255).astype(np.uint8)
+        return lut
 
     def _render_spectrogram_pixmap(self, audio: np.ndarray, sample_rate: int) -> QPixmap:
         width, height = PREVIEW_SPECTROGRAM_SIZE
@@ -1339,24 +1447,44 @@ class ExportDialog(QDialog):
         spectrum = np.abs(np.fft.rfft(matrix, axis=1))
         spectrum = np.maximum(spectrum, 1e-8)
         db = 20.0 * np.log10(spectrum)
-        db -= db.max()
-        db = np.clip(db / 80.0 + 1.0, 0.0, 1.0)
+
+        # Normalize using percentile-based scaling like main spectrogram
+        try:
+            lo = float(np.nanpercentile(db, 5))
+            hi = float(np.nanpercentile(db, 95))
+            if hi <= lo:
+                lo = float(np.nanmin(db))
+                hi = float(np.nanmax(db) + 1e-6)
+            norm = (db - lo) / (hi - lo)
+            norm = np.clip(np.nan_to_num(norm, nan=0.0, posinf=1.0, neginf=0.0), 0.0, 1.0)
+        except (FloatingPointError, OverflowError, ValueError, ZeroDivisionError, TypeError):
+            # Fallback to simple normalization
+            db -= db.max()
+            norm = np.clip(db / 80.0 + 1.0, 0.0, 1.0)
 
         frame_indices = np.clip(
-            np.round(np.linspace(0, db.shape[0] - 1, width)).astype(int), 0, db.shape[0] - 1
+            np.round(np.linspace(0, norm.shape[0] - 1, width)).astype(int), 0, norm.shape[0] - 1
         )
         freq_indices = np.clip(
-            np.round(np.linspace(0, db.shape[1] - 1, height)).astype(int), 0, db.shape[1] - 1
+            np.round(np.linspace(0, norm.shape[1] - 1, height)).astype(int), 0, norm.shape[1] - 1
         )
-        sampled = db[frame_indices][:, freq_indices]
-        image_array = np.flipud(sampled.T)
-        image_data = np.ascontiguousarray(image_array * 255.0, dtype=np.uint8)
+        sampled = norm[frame_indices][:, freq_indices]
+        image_array = np.flipud(sampled.T)  # Shape: (height, width)
+
+        # Apply colormap
+        indices = np.rint(image_array * 255.0).astype(np.int16)
+        indices = np.clip(indices, 0, 255).astype(np.uint8)
+        colormap = self._build_colormap_lut()  # Shape: (256, 4)
+        # Index into colormap: indices is (height, width), result is (height, width, 4)
+        rgba = colormap[indices]
+
+        image_data = np.ascontiguousarray(rgba, dtype=np.uint8)
         image = QImage(
             image_data.data,
             width,
             height,
             image_data.strides[0],
-            QImage.Format.Format_Grayscale8,
+            QImage.Format.Format_RGBA8888,
         )
         pixmap = QPixmap.fromImage(image.copy())
         painter = QPainter(pixmap)

@@ -306,11 +306,17 @@ class ExportWorker(QObject):
 
     def _resolve_bandpass_low(self, override: ExportSampleOverride | None) -> float | None:
         if override and override.bandpass_low_hz is not None:
+            # Check for disabled sentinel (-1.0)
+            if override.bandpass_low_hz == -1.0:
+                return None
             return float(override.bandpass_low_hz)
         return self._batch_settings.bandpass_low_hz
 
     def _resolve_bandpass_high(self, override: ExportSampleOverride | None) -> float | None:
         if override and override.bandpass_high_hz is not None:
+            # Check for disabled sentinel (-1.0)
+            if override.bandpass_high_hz == -1.0:
+                return None
             return float(override.bandpass_high_hz)
         return self._batch_settings.bandpass_high_hz
 
