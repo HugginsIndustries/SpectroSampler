@@ -306,6 +306,9 @@ def extract_sample(
     channels: str | None = None,
     normalize: bool = False,
     lufs_target: float | None = None,
+    metadata: dict[str, Any] | None = None,
+    bandpass_low_hz: float | None = None,
+    bandpass_high_hz: float | None = None,
 ) -> None:
     """Extract a sample segment from audio using FFmpeg.
 
@@ -332,6 +335,42 @@ def extract_sample(
     logging.debug(f"Extracting sample: {start_sec:.3f}s-{end_sec:.3f}s -> {output_path}")
     duration = max(0.0, end_sec - start_sec)
 
+    metadata_entries: dict[str, str] = {}
+    if metadata:
+        for key, value in metadata.items():
+            if value in (None, ""):
+                continue
+            metadata_entries[str(key)] = str(value)
+
+    bp_low = float(bandpass_low_hz) if bandpass_low_hz is not None else None
+    bp_high = float(bandpass_high_hz) if bandpass_high_hz is not None else None
+    if bp_low is not None and bp_low < 0.0:
+        raise ValueError("bandpass_low_hz must be non-negative.")
+    if bp_high is not None and bp_high <= 0.0:
+        raise ValueError("bandpass_high_hz must be positive when provided.")
+    if bp_low is not None and bp_high is not None and bp_low >= bp_high:
+        raise ValueError("bandpass_low_hz must be lower than bandpass_high_hz.")
+
+    def _bandpass_filter_list() -> list[str]:
+        filters: list[str] = []
+        if bp_low is not None and bp_high is not None:
+            filters.append(f"bandpass=low={bp_low}:high={bp_high}")
+        elif bp_low is not None:
+            filters.append(f"highpass=f={bp_low}")
+        elif bp_high is not None:
+            filters.append(f"lowpass=f={bp_high}")
+        return filters
+
+    bandpass_filters = _bandpass_filter_list()
+
+    def _apply_metadata(cmd: list[str]) -> None:
+        for key, value in metadata_entries.items():
+            cmd += ["-metadata", f"{key}={value}"]
+
+    fmt_lower = (format or "").lower()
+    input_ext = input_path.suffix.lower().lstrip(".")
+    same_format = bool(fmt_lower) and fmt_lower == input_ext
+
     # If normalization is requested, we need to re-encode (can't use stream copy)
     # For peak normalization, we need two passes: detect peak, then normalize
     if normalize and lufs_target is None:
@@ -345,6 +384,7 @@ def extract_sample(
             temp_extract_filters.append(
                 f"afade=t=out:st={start_out:.3f}:d={fade_out_ms/1000.0:.3f}"
             )
+        temp_extract_filters.extend(bandpass_filters)
 
         # Run volumedetect to find peak level
         volumedetect_cmd = [
@@ -398,6 +438,7 @@ def extract_sample(
         # Apply volume adjustment (only if gain is needed)
         if abs(gain_db) > 0.01:  # Only apply if gain change is significant
             af_filters.append(f"volume={gain_db}dB")
+        af_filters.extend(bandpass_filters)
 
         cmd = [
             "ffmpeg",
@@ -421,6 +462,9 @@ def extract_sample(
                 cmd += ["-sample_fmt", sample_fmt]
         if format:
             cmd += ["-f", format]
+        if fmt_lower == "mp3":
+            cmd += ["-codec:a", "libmp3lame"]
+        _apply_metadata(cmd)
         cmd += [str(output_path)]
 
         _run_media_tool(
@@ -431,11 +475,20 @@ def extract_sample(
         return
 
     # Try stream copy first (skip for WAV to ensure precise duration, and skip if normalization needed)
-    if (
-        (format or "").lower() != "wav"
-        and not str(output_path).lower().endswith(".wav")
+    # Note: Stream copy cannot reliably write metadata for many audio formats, so skip it when metadata is present
+    can_stream_copy = (
+        same_format
         and not normalize
-    ):
+        and lufs_target is None
+        and not bandpass_filters
+        and not fade_in_ms
+        and not fade_out_ms
+        and sample_rate is None
+        and bit_depth is None
+        and channels is None
+        and not metadata_entries  # Skip stream copy when metadata is present
+    )
+    if can_stream_copy:
         cmd_copy = [
             "ffmpeg",
             "-y",
@@ -447,8 +500,9 @@ def extract_sample(
             f"{duration:.6f}",
             "-c",
             "copy",
-            str(output_path),
         ]
+        # Do not apply metadata in stream copy mode - it's unreliable and requires re-encoding
+        cmd_copy.append(str(output_path))
         try:
             _run_media_tool(
                 cmd_copy,
@@ -474,6 +528,7 @@ def extract_sample(
         # This shouldn't be reached due to early return above, but keep as fallback
         # Peak normalization to -0.1 dBFS using loudnorm with True Peak target
         fallback_filters.append("loudnorm=I=-23:TP=-0.1")
+    fallback_filters.extend(bandpass_filters)
     cmd = [
         "ffmpeg",
         "-y",
@@ -496,6 +551,9 @@ def extract_sample(
             cmd += ["-sample_fmt", sample_fmt]
     if format:
         cmd += ["-f", format]
+    if fmt_lower == "mp3":
+        cmd += ["-codec:a", "libmp3lame"]
+    _apply_metadata(cmd)
     cmd += [str(output_path)]
     _run_media_tool(
         cmd,

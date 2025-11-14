@@ -11,7 +11,7 @@ Items marked [Docs Impact] will require updates to `README.md` and/or `docs/GUI_
 - [P1] High-priority improvements that materially enhance UX/functionality; schedule next iterations.
 - [P2] Nice-to-have or longer-term enhancements; plan after P0/P1.
 
-_Summary: P0: 0 items, P1: 21 items, P2: 12 items_
+_Summary: P0: 0 items, P1: 19 items, P2: 12 items_
 
 **Maintainers guide (editing this TODO):**
 - Use imperative phrasing for items ("Add", "Improve", "Expose", "Implement").
@@ -101,22 +101,6 @@ _Summary: P0: 0 items, P1: 21 items, P2: 12 items_
 ### Workflow Improvements
 
 #### Export Workflow
-- [ ] [P1] Add full export dialog with advanced options
-  - Create comprehensive export dialog with tabbed interface: "Global" tab for modifying all global batch settings (format, sample rate, bit depth, channels, bandpass filtering utilizing existing `bandpass_filter`, pre-padding, post-padding, normalization, file name format, export folder, etc.) and "Samples" tab with one-by-one sample review UI.
-  - Samples tab shows mini spectrogram and waveform preview for current sample (including pre/post-padding that updates when those settings change), forward/back navigation buttons, and sample indicator showing current position (e.g., "4/72").
-  - Allow per-sample overrides for settings that support it (bandpass filtering, padding, normalization, etc.); per-sample settings override global settings when configured.
-  - "Cancel" and "Export Sample(s)" buttons visible at bottom regardless of active tab.
-  - Move all options from current "Export" menu into new export dialog (pre-padding, post-padding, format, sample rate, bit depth, channels, peak normalization).
-  - Replace the single format dropdown with individual checkboxes for each available output format (defaulting to only WAV enabled). This will allow users to select multiple formats for one export process.
-  - Implement metadata fields: per-batch Artist (default "SpectroSampler"), Album (default to input audio filename), Year (default current year); per-sample Title (default export filename); exports include Track Numbers derived from sample IDs.
-  - Include export progress tracking with progress bar, ETA, safe cancel, and end-of-run dialog summarizing per-sample status (success/failures).
-  - Support batch export with pause/resume functionality: track per-sample status and allow resuming to complete remaining items after restart.
-  - Persist all export settings (batch defaults and per-sample overrides) across sessions.
-  - Acceptance: Export dialog has Global and Samples tabs; Samples tab shows current sample preview with forward/back navigation and position indicator (e.g., "4/72"); all settings available as global batch defaults; per-sample settings can override global when configured; Cancel and Export buttons always visible; progress tracking with cancel and summary dialog; pause/resume functionality works; all Export menu options moved to dialog; settings persist across sessions. [Docs Impact]
-- [ ] [P1] Add MP3 export support
-  - Integrate MP3 encoding alongside existing WAV/FLAC paths.
-  - Ensure new format works in export dialog presets and CLI batch pipelines.
-  - Acceptance: MP3 appears as a selectable export format, encodes successfully with metadata, and is covered by automated tests. [Docs Impact]
 - [ ] [P1] Expand HTML report contents (from `spectrosampler/report.py:create_html_report`)
   - Acceptance:
     - Report includes processing settings summary, detector statistics, and deep links to generated assets.

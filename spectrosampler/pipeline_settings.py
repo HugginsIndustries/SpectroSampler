@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
+from spectrosampler.gui.export_models import DEFAULT_FILENAME_TEMPLATE
+
 
 @dataclass(frozen=True, slots=True)
 class ValidationIssue:
@@ -24,6 +26,15 @@ class ProcessingSettings:
         "detection_post_pad_ms",
         "export_pre_pad_ms",
         "export_post_pad_ms",
+        "export_formats",
+        "export_bandpass_low_hz",
+        "export_bandpass_high_hz",
+        "export_normalize",
+        "export_filename_template",
+        "export_artist",
+        "export_album",
+        "export_year",
+        "export_notes",
         "pre_pad_ms",
         "post_pad_ms",
         "merge_gap_ms",
@@ -77,15 +88,51 @@ class ProcessingSettings:
         # Export padding (used during sample export)
         self.export_pre_pad_ms: float = kwargs.get("export_pre_pad_ms", 0.0)
         self.export_post_pad_ms: float = kwargs.get("export_post_pad_ms", 0.0)
-        # Legacy fields for backward compatibility - use detection padding if not set
-        self.pre_pad_ms: float = kwargs.get("pre_pad_ms", kwargs.get("detection_pre_pad_ms", 0.0))
-        self.post_pad_ms: float = kwargs.get(
-            "post_pad_ms", kwargs.get("detection_post_pad_ms", 0.0)
+        formats_value = kwargs.get("export_formats") or kwargs.get("formats")
+        if isinstance(formats_value, (list, tuple, set)):
+            formats = [str(v).lower() for v in formats_value if isinstance(v, str)]
+        elif isinstance(formats_value, str):
+            formats = [formats_value.lower()]
+        else:
+            formats = []
+        self.export_formats: list[str] = [fmt for fmt in formats if fmt] or ["wav"]
+        self.export_bandpass_low_hz: float | None = self._coerce_optional_float(
+            kwargs.get("export_bandpass_low_hz")
         )
-        self.merge_gap_ms: float = kwargs.get("merge_gap_ms", 0.0)
-        self.min_dur_ms: float = kwargs.get("min_dur_ms", 100.0)
-        self.max_dur_ms: float = kwargs.get("max_dur_ms", 60000.0)
-        self.min_gap_ms: float = kwargs.get("min_gap_ms", 1000.0)
+        self.export_bandpass_high_hz: float | None = self._coerce_optional_float(
+            kwargs.get("export_bandpass_high_hz")
+        )
+        self.export_normalize: bool = bool(kwargs.get("export_normalize", False))
+        template_value = kwargs.get("export_filename_template", DEFAULT_FILENAME_TEMPLATE)
+        if (
+            isinstance(template_value, str)
+            and template_value.strip()
+            and template_value.strip() != "{basename}_sample_{index:04d}"
+        ):
+            self.export_filename_template: str = template_value.strip()
+        else:
+            self.export_filename_template = DEFAULT_FILENAME_TEMPLATE
+        self.export_artist: str = str(
+            kwargs.get("export_artist", "SpectroSampler") or "SpectroSampler"
+        )
+        album_value = kwargs.get("export_album")
+        self.export_album: str | None = str(album_value) if album_value not in (None, "") else None
+        self.export_year: int | None = self._coerce_optional_int(kwargs.get("export_year"))
+        raw_notes = kwargs.get("export_notes")
+        self.export_notes: str | None = (
+            str(raw_notes).strip() if isinstance(raw_notes, str) and raw_notes.strip() else None
+        )
+        # Legacy fields for backward compatibility - use detection padding if not set
+        self.pre_pad_ms: float = float(
+            kwargs.get("pre_pad_ms", kwargs.get("detection_pre_pad_ms", 0.0))
+        )
+        self.post_pad_ms: float = float(
+            kwargs.get("post_pad_ms", kwargs.get("detection_post_pad_ms", 0.0))
+        )
+        self.merge_gap_ms: float = float(kwargs.get("merge_gap_ms", 0.0))
+        self.min_dur_ms: float = float(kwargs.get("min_dur_ms", 100.0))
+        self.max_dur_ms: float = float(kwargs.get("max_dur_ms", 60000.0))
+        self.min_gap_ms: float = float(kwargs.get("min_gap_ms", 1000.0))
         # Disable chain-merge after padding by default
         self.no_merge_after_padding: bool = kwargs.get("no_merge_after_padding", True)
 
@@ -162,6 +209,24 @@ class ProcessingSettings:
                 self.resolve_overlaps = "keep-highest"
             if self.overlap_iou == 0.0:
                 self.overlap_iou = 0.20
+
+    @staticmethod
+    def _coerce_optional_float(value: Any) -> float | None:
+        if value in (None, ""):
+            return None
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    @staticmethod
+    def _coerce_optional_int(value: Any) -> int | None:
+        if value in (None, "", 0):
+            return None
+        try:
+            return int(value)
+        except (TypeError, ValueError):
+            return None
 
     def validate(self) -> list[ValidationIssue]:
         """Return a list of validation issues for the current settings."""
@@ -294,11 +359,20 @@ class ProcessingSettings:
                 )
             )
 
-        allowed_formats = {"wav", "flac"}
-        if self.format and self.format.lower() not in allowed_formats:
+        allowed_formats = {"wav", "flac", "mp3"}
+        if self.format and self.format.lower() not in {"wav", "flac"}:
             issues.append(
                 ValidationIssue("format", "Export format must be either 'wav' or 'flac'.")
             )
+        for fmt in self.export_formats:
+            if fmt not in allowed_formats:
+                issues.append(
+                    ValidationIssue(
+                        "export_formats",
+                        "Supported audio formats are: wav, flac, mp3.",
+                    )
+                )
+                break
 
         sample_rate_val = _coerce_int("sample_rate", self.sample_rate, allow_none=True)
         if sample_rate_val is not None and sample_rate_val <= 0:
@@ -382,6 +456,48 @@ class ProcessingSettings:
 
         if self.overlap_iou < 0.0 or self.overlap_iou > 1.0:
             issues.append(ValidationIssue("overlap_iou", "Overlap IoU must be between 0 and 1."))
+
+        low = self.export_bandpass_low_hz
+        high = self.export_bandpass_high_hz
+        if low is not None:
+            try:
+                low = float(low)
+                if low < 0.0:
+                    issues.append(
+                        ValidationIssue(
+                            "export_bandpass_low_hz",
+                            "Export bandpass low cutoff cannot be negative.",
+                        )
+                    )
+            except (TypeError, ValueError):
+                issues.append(
+                    ValidationIssue(
+                        "export_bandpass_low_hz", "Export bandpass low cutoff must be numeric."
+                    )
+                )
+        if high is not None:
+            try:
+                high = float(high)
+                if high <= 0.0:
+                    issues.append(
+                        ValidationIssue(
+                            "export_bandpass_high_hz",
+                            "Export bandpass high cutoff must be positive.",
+                        )
+                    )
+            except (TypeError, ValueError):
+                issues.append(
+                    ValidationIssue(
+                        "export_bandpass_high_hz", "Export bandpass high cutoff must be numeric."
+                    )
+                )
+        if low is not None and high is not None and float(low) >= float(high):
+            issues.append(
+                ValidationIssue(
+                    "export_bandpass_low_hz",
+                    "Export bandpass low cutoff must be lower than the high cutoff.",
+                )
+            )
 
         return issues
 

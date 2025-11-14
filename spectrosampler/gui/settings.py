@@ -8,6 +8,13 @@ from typing import Any
 
 from PySide6.QtCore import QSettings
 
+from spectrosampler.gui.export_models import (
+    DEFAULT_FILENAME_TEMPLATE,
+    ExportBatchSettings,
+    ExportSampleOverride,
+    parse_overrides,
+    serialise_overrides,
+)
 from spectrosampler.pipeline_settings import ProcessingSettings
 
 logger = logging.getLogger(__name__)
@@ -82,6 +89,16 @@ class SettingsManager:
             "export_sample_rate": None,
             "export_bit_depth": None,
             "export_channels": None,
+            "export_formats": ["wav"],
+            "export_normalize": False,
+            "export_bandpass_low_hz": None,
+            "export_bandpass_high_hz": None,
+            "export_filename_template": DEFAULT_FILENAME_TEMPLATE,
+            "export_artist": "SpectroSampler",
+            "export_album": None,
+            "export_year": None,
+            "export_output_directory": None,
+            "export_notes": None,
         }
         payload = self._load_json_dict("exportSettings")
         result: dict[str, Any] = defaults.copy()
@@ -122,6 +139,75 @@ class SettingsManager:
         elif channels in (None, ""):
             result["export_channels"] = None
 
+        formats_value = payload.get("export_formats")
+        if isinstance(formats_value, list):
+            formats = []
+            for item in formats_value:
+                if not isinstance(item, str):
+                    continue
+                lowered = item.strip().lower()
+                if lowered:
+                    formats.append(lowered)
+            result["export_formats"] = formats or ["wav"]
+        elif isinstance(formats_value, str):
+            lowered = formats_value.strip().lower()
+            result["export_formats"] = [lowered] if lowered else ["wav"]
+
+        result["export_normalize"] = bool(payload.get("export_normalize", False))
+
+        def _float_or_none(value: Any) -> float | None:
+            if value in (None, ""):
+                return None
+            try:
+                return float(value)
+            except (TypeError, ValueError):
+                return None
+
+        result["export_bandpass_low_hz"] = _float_or_none(payload.get("export_bandpass_low_hz"))
+        result["export_bandpass_high_hz"] = _float_or_none(payload.get("export_bandpass_high_hz"))
+
+        template_val = payload.get("export_filename_template")
+        if isinstance(template_val, str) and template_val.strip():
+            candidate = template_val.strip()
+            if candidate == "{basename}_sample_{index:04d}":
+                result["export_filename_template"] = DEFAULT_FILENAME_TEMPLATE
+            else:
+                result["export_filename_template"] = candidate
+        else:
+            result["export_filename_template"] = defaults["export_filename_template"]
+
+        artist_val = payload.get("export_artist", defaults["export_artist"])
+        result["export_artist"] = (
+            str(artist_val).strip()
+            if isinstance(artist_val, str) and artist_val.strip()
+            else "SpectroSampler"
+        )
+        album_val = payload.get("export_album")
+        if isinstance(album_val, str) and album_val.strip():
+            result["export_album"] = album_val
+        else:
+            result["export_album"] = None
+
+        year_val = payload.get("export_year")
+        if year_val in (None, "", 0):
+            result["export_year"] = None
+        else:
+            try:
+                result["export_year"] = int(year_val)
+            except (TypeError, ValueError):
+                result["export_year"] = None
+
+        output_dir = payload.get("export_output_directory")
+        if isinstance(output_dir, str) and output_dir.strip():
+            result["export_output_directory"] = output_dir
+        else:
+            result["export_output_directory"] = None
+        notes_val = payload.get("export_notes")
+        if isinstance(notes_val, str) and notes_val.strip():
+            result["export_notes"] = notes_val
+        else:
+            result["export_notes"] = None
+
         return result
 
     def set_export_settings(self, settings: dict[str, Any]) -> None:
@@ -133,9 +219,77 @@ class SettingsManager:
             "export_sample_rate",
             "export_bit_depth",
             "export_channels",
+            "export_formats",
+            "export_normalize",
+            "export_bandpass_low_hz",
+            "export_bandpass_high_hz",
+            "export_filename_template",
+            "export_artist",
+            "export_album",
+            "export_year",
+            "export_output_directory",
+            "export_notes",
         }
         payload = {key: settings.get(key) for key in allowed_keys}
         self._store_json_dict("exportSettings", payload)
+
+    def get_export_batch_settings(self) -> ExportBatchSettings:
+        """Return export settings as an `ExportBatchSettings` instance."""
+        legacy = self.get_export_settings()
+        modern: dict[str, Any] = {
+            "formats": legacy.get("export_formats"),
+            "sample_rate_hz": legacy.get("export_sample_rate"),
+            "bit_depth": legacy.get("export_bit_depth"),
+            "channels": legacy.get("export_channels"),
+            "pre_pad_ms": legacy.get("export_pre_pad_ms"),
+            "post_pad_ms": legacy.get("export_post_pad_ms"),
+            "normalize": legacy.get("export_normalize"),
+            "bandpass_low_hz": legacy.get("export_bandpass_low_hz"),
+            "bandpass_high_hz": legacy.get("export_bandpass_high_hz"),
+            "filename_template": legacy.get("export_filename_template"),
+            "output_directory": legacy.get("export_output_directory"),
+            "artist": legacy.get("export_artist"),
+            "album": legacy.get("export_album"),
+            "year": legacy.get("export_year"),
+            "notes": legacy.get("export_notes"),
+        }
+        return ExportBatchSettings.from_dict(modern)
+
+    def set_export_batch_settings(self, settings: ExportBatchSettings) -> None:
+        """Persist global export settings using the batch data model."""
+        payload = {
+            "export_pre_pad_ms": settings.pre_pad_ms,
+            "export_post_pad_ms": settings.post_pad_ms,
+            "export_format": settings.formats[0] if settings.formats else "wav",
+            "export_formats": list(settings.formats),
+            "export_sample_rate": settings.sample_rate_hz,
+            "export_bit_depth": settings.bit_depth,
+            "export_channels": settings.channels,
+            "export_normalize": settings.normalize,
+            "export_bandpass_low_hz": settings.bandpass_low_hz,
+            "export_bandpass_high_hz": settings.bandpass_high_hz,
+            "export_filename_template": settings.filename_template,
+            "export_output_directory": settings.output_directory,
+            "export_artist": settings.artist,
+            "export_album": settings.album,
+            "export_year": settings.year,
+            "export_notes": settings.notes,
+        }
+        self._store_json_dict("exportSettings", payload)
+
+    def get_export_sample_overrides(self) -> list[ExportSampleOverride]:
+        """Return persisted per-sample export overrides."""
+        payload = self._load_json_dict("exportOverrides")
+        overrides_payload = payload.get("items") if isinstance(payload, dict) else []
+        try:
+            return parse_overrides(overrides_payload)
+        except ValueError:
+            return []
+
+    def set_export_sample_overrides(self, overrides: list[ExportSampleOverride]) -> None:
+        """Persist per-sample export overrides."""
+        snapshot = {"items": serialise_overrides(overrides)}
+        self._store_json_dict("exportOverrides", snapshot)
 
     def get_recent_projects(self, max_count: int = 10) -> list[tuple[Path, datetime]]:
         """Get list of recent projects.

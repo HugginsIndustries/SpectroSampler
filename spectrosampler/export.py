@@ -2,6 +2,7 @@
 
 import logging
 from pathlib import Path
+from typing import Any
 
 from spectrosampler.audio_io import extract_sample, get_audio_info
 from spectrosampler.detectors.base import Segment
@@ -90,8 +91,9 @@ def export_sample(
     channels: str | None = None,
     normalize: bool = False,
     lufs_target: float | None = None,
-    duration: float | None = None,
-    run_log: Path | None = None,
+    bandpass_low_hz: float | None = None,
+    bandpass_high_hz: float | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> None:
     """Export a single sample segment.
 
@@ -101,7 +103,6 @@ def export_sample(
         segment: Segment to export.
         pre_pad_ms: Padding before segment start (milliseconds).
         post_pad_ms: Padding after segment end (milliseconds).
-        duration: Optional duration constraint (if None, use full segment + padding).
 
     Raises:
         ValueError: If calculated times are invalid.
@@ -126,6 +127,9 @@ def export_sample(
         channels=channels,
         normalize=normalize,
         lufs_target=lufs_target,
+        bandpass_low_hz=bandpass_low_hz,
+        bandpass_high_hz=bandpass_high_hz,
+        metadata=metadata,
     )
 
 

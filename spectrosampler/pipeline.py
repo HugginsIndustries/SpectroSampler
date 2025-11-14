@@ -22,11 +22,18 @@ from spectrosampler.detectors import (
     VoiceVADDetector,
 )
 from spectrosampler.export import (
-    build_sample_filename,
     export_markers_audacity,
     export_markers_reaper,
     export_sample,
     export_timestamps_csv,
+)
+from spectrosampler.gui.export_models import (
+    DEFAULT_FILENAME_TEMPLATE,
+    apply_template,
+    build_template_context,
+    compute_sample_id,
+    derive_sample_title,
+    render_filename_from_template,
 )
 from spectrosampler.pipeline_settings import ProcessingSettings
 from spectrosampler.report import (
@@ -612,18 +619,77 @@ def process_file(
     export_markers_reaper(final_segments, markers_dir / "reaper_regions.csv")
 
     # Samples
+    formats = list(settings.export_formats or [])
+    if not formats:
+        formats = [settings.format or "wav"]
+
     for idx, seg in enumerate(final_segments):
-        name = build_sample_filename(base_name, seg, idx, len(final_segments)) + ".wav"
+        sample_id = compute_sample_id(idx, seg)
+        title_value = derive_sample_title(idx, seg, fallback="sample")
+        for fmt in formats:
+            filename_base = render_filename_from_template(
+                template=settings.export_filename_template or DEFAULT_FILENAME_TEMPLATE,
+                base_name=base_name,
+                sample_id=sample_id,
+                index=idx,
+                total=len(final_segments),
+                segment=seg,
+                fmt=fmt,
+                normalized=settings.export_normalize,
+                pre_pad_ms=settings.export_pre_pad_ms,
+                post_pad_ms=settings.export_post_pad_ms,
+                title=title_value,
+                artist=settings.export_artist,
+                album=settings.export_album,
+                year=settings.export_year,
+                sample_rate_hz=settings.sample_rate,
+                bit_depth=settings.bit_depth,
+                channels=settings.channels,
+            )
+            context = build_template_context(
+                base_name=base_name,
+                sample_id=sample_id,
+                index=idx,
+                total=len(final_segments),
+                segment=seg,
+                fmt=fmt,
+                normalize=settings.export_normalize,
+                pre_pad_ms=settings.export_pre_pad_ms,
+                post_pad_ms=settings.export_post_pad_ms,
+                title=title_value,
+                artist=settings.export_artist,
+                album=settings.export_album,
+                year=settings.export_year,
+                sample_rate_hz=settings.sample_rate,
+                bit_depth=settings.bit_depth,
+                channels=settings.channels,
+            )
+            metadata = {
+                "title": title_value,
+                "artist": settings.export_artist,
+                "album": settings.export_album,
+                "year": settings.export_year,
+                "track": idx + 1,
+                "format": fmt.upper(),
+            }
+            if settings.export_notes:
+                rendered_notes = apply_template(settings.export_notes, context).strip()
+                if rendered_notes:
+                    metadata["comment"] = rendered_notes
         export_sample(
             input_path=input_path,
-            output_path=samples_dir / name,
+            output_path=samples_dir / f"{filename_base}.{fmt}",
             segment=seg,
             pre_pad_ms=settings.export_pre_pad_ms,
             post_pad_ms=settings.export_post_pad_ms,
-            format=settings.format,
+            format=fmt,
             sample_rate=settings.sample_rate,
             bit_depth=settings.bit_depth,
             channels=settings.channels,
+            normalize=settings.export_normalize,
+            bandpass_low_hz=settings.export_bandpass_low_hz,
+            bandpass_high_hz=settings.export_bandpass_high_hz,
+            metadata=metadata,
         )
 
     # Spectrograms

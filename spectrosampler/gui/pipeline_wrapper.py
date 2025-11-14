@@ -2,12 +2,15 @@
 
 import errno
 import logging
+from collections.abc import Sequence
 from concurrent.futures import CancelledError, Future, ProcessPoolExecutor
 from pathlib import Path
 from typing import Any
 
 from spectrosampler.audio_io import FFmpegError
 from spectrosampler.detectors.base import Segment
+from spectrosampler.gui.export_manager import ExportManager
+from spectrosampler.gui.export_models import ExportBatchSettings, ExportSampleOverride
 from spectrosampler.pipeline_settings import ProcessingSettings
 
 logger = logging.getLogger(__name__)
@@ -192,14 +195,16 @@ class PipelineWrapper:
         self,
         output_dir: Path,
         selected_indices: list[int] | None = None,
-        normalize: bool = False,
+        batch_settings: ExportBatchSettings | None = None,
+        overrides: Sequence[ExportSampleOverride] | None = None,
     ) -> int:
         """Export selected samples.
 
         Args:
             output_dir: Output directory for samples.
             selected_indices: List of segment indices to export. If None, exports all.
-            normalize: Whether to normalize peak levels to -0.1 dBFS.
+            batch_settings: Export batch settings to apply. When None, derive from pipeline settings.
+            overrides: Per-sample overrides to apply during export.
 
         Returns:
             Number of samples exported.
@@ -212,43 +217,60 @@ class PipelineWrapper:
         if selected_indices is None:
             selected_indices = list(range(len(self.current_segments)))
 
-        # Export selected segments
-        from spectrosampler.export import build_sample_filename, export_sample
-
-        exported_count = 0
-        for idx in selected_indices:
-            if idx < 0 or idx >= len(self.current_segments):
-                continue
-
-            segment = self.current_segments[idx]
-            base_name = self.current_audio_path.stem
-            filename = (
-                build_sample_filename(
-                    base_name, segment, idx, len(self.current_segments), normalize=normalize
-                )
-                + ".wav"
+        if batch_settings is None:
+            batch_settings = ExportBatchSettings(
+                formats=[self.settings.format],
+                sample_rate_hz=self.settings.sample_rate,
+                bit_depth=self.settings.bit_depth,
+                channels=self.settings.channels,
+                pre_pad_ms=self.settings.export_pre_pad_ms,
+                post_pad_ms=self.settings.export_post_pad_ms,
+                normalize=self.settings.export_normalize,
+                bandpass_low_hz=self.settings.export_bandpass_low_hz,
+                bandpass_high_hz=self.settings.export_bandpass_high_hz,
+                filename_template=self.settings.export_filename_template,
+                output_directory=str(output_dir),
+                artist=self.settings.export_artist,
+                album=self.settings.export_album
+                or (self.current_audio_path.stem if self.current_audio_path else None),
+                year=self.settings.export_year,
             )
-            output_path = output_dir / filename
 
-            try:
-                export_sample(
-                    input_path=self.current_audio_path,
-                    output_path=output_path,
-                    segment=segment,
-                    pre_pad_ms=self.settings.export_pre_pad_ms,
-                    post_pad_ms=self.settings.export_post_pad_ms,
-                    format=self.settings.format,
-                    sample_rate=self.settings.sample_rate,
-                    bit_depth=self.settings.bit_depth,
-                    channels=self.settings.channels,
-                    normalize=normalize,
-                    lufs_target=None,  # Use peak normalization, not LUFS
-                )
-                exported_count += 1
-            except (FFmpegError, OSError, ValueError) as exc:
-                logger.error(
-                    "Failed to export sample %d to %s: %s", idx, output_path, exc, exc_info=exc
-                )
+        manager = self.create_export_manager(
+            output_dir=output_dir,
+            batch_settings=batch_settings,
+            overrides=overrides or [],
+        )
 
-        logger.info(f"Exported {exported_count} samples")
-        return exported_count
+        summary = manager.execute_blocking(selected_indices)
+        logger.info(
+            "Export summary: %d success, %d failed, cancelled=%s",
+            summary.successful_count,
+            len(summary.failed),
+            summary.cancelled,
+        )
+        return summary.successful_count
+
+    def create_export_manager(
+        self,
+        *,
+        output_dir: Path,
+        batch_settings: ExportBatchSettings,
+        overrides: Sequence[ExportSampleOverride],
+    ) -> ExportManager:
+        """Instantiate an export manager for the current pipeline configuration."""
+
+        if not self.current_segments:
+            raise ValueError("No segments available. Run process_preview first.")
+        if self.current_audio_path is None:
+            raise ValueError("No audio file loaded.")
+
+        manager = ExportManager(
+            audio_path=self.current_audio_path,
+            segments=self.current_segments,
+            batch_settings=batch_settings,
+            overrides=overrides,
+            output_dir=output_dir,
+            base_name=self.current_audio_path.stem,
+        )
+        return manager

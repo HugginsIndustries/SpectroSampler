@@ -42,10 +42,9 @@ All splitters are draggable. Collapse the player or info table from the View men
 
 ### 2.2 Menus & Key Commands
 
-- **File** – Project lifecycle (new/open/save), audio import, recent files.
+- **File** – Project lifecycle (new/open/save), audio import, recent files, sample export.
 - **Edit** – Undo/redo, re-run detection, auto sample ordering, bulk delete/disable, project-wide **Enable All Samples** / **Disable All Samples**, overlap/duplicate removal and merging, Duration Edits (expand/contract, stretch from start/end).
 - **View** – Fit to Window, Zoom to Selection (`Ctrl+Shift+F`), toggle info table/player/waveform visibility, show disabled samples, refresh-rate limiter, grid settings, and theme selection (System/Dark/Light).
-- **Export** – Pre/post padding, format (WAV/FLAC), sample rate, bit depth, channels, peak normalization.
 - **Settings** – Autosave toggle/interval, clear recent projects/audio.
 - **Help** – Diagnostics panel (FFmpeg status, audio devices, environment), verbose logging toggle, and the about dialog.
 
@@ -190,20 +189,15 @@ Toggle snapping quickly with the `G` key or the checkbox under detection setting
 
 ## 6. Exporting Your Pack
 
-Open the **Export** menu to configure session-wide parameters:
+Open **File → Export Samples** (`Ctrl+E`) to launch the export dialog:
 
-- **Peak Normalization** – When enabled, normalizes each exported sample to -0.1 dBFS without clipping. This ensures consistent peak levels across all samples. The setting persists across sessions and is saved with project files.
+1. **Global Tab** – Select one or more formats (WAV/FLAC/MP3), adjust sample rate, bit depth, and channels, set pre/post padding, toggle peak normalization, configure an optional bandpass filter (low/high cut fields are always editable with 20Hz/20000Hz defaults, but the filter only applies when the option is enabled), choose the destination folder, and edit metadata defaults (Artist/Album/Year), filename template, and global export notes. Enable "Save as default export settings" to persist these defaults for new projects.
+2. **Samples Tab** – Browse enabled samples using forward/back controls. Each sample shows waveform and spectrogram previews that reflect the current padding and filters. The top-right corner displays a filename preview listing all output filenames for the current sample (one per selected format, newline-delimited) that updates automatically when formats, template, padding, metadata, or sample overrides change. The **Title** section (above the Per-sample Overrides) provides a text field that is always editable; enable the **Custom** checkbox to apply your custom title (otherwise it defaults to the sample name from the info table, or "sample" if empty). The **Per-sample Overrides** section lets you override padding, normalization, bandpass (fields are always editable, but only apply when Override is checked), and notes on a per-sample basis. Overrides win over the global defaults.
+3. **Export** – Click **Export Sample(s)** to start the batch. The progress dialog reports per-sample status and ETA, and supports pause, resume, and safe cancel. Cancelling stores the unfinished sample IDs so the next export can resume instantly.
 
-- **Pre/Post padding...** – Add silence before/after every exported sample.
-- **Format** – WAV or FLAC.
-- **Sample Rate** – Enter 0 to keep the original.
-- **Bit Depth** – 16-bit, 24-bit, 32-bit float, or “None (original).”
-- **Channels** – Mono, stereo, or “None (original)” to keep source layout.
-- On export failure, SpectroSampler shows a detailed FFmpeg dialog: you’ll see the exact command that failed plus practical suggestions (check source path, ensure FFmpeg is installed, verify the destination folder is writable) so you can make fixes and retry immediately.
+Only columns that remain enabled (checked) in the info table are exported. Filenames always pass through the template (default `{id}_{title}_{start}_{duration}`) and sanitizer, so reserved characters or Windows device names never block the write. `{id}` is the four-digit sample index, `{title}` comes from the sample info table name (falling back to `sample`), or from the custom title if the Custom checkbox is enabled in the Samples tab, and the template/notes fields both support rich tokens: `{id}`, `{title}`, `{artist}`, `{album}`, `{year}`, `{format}`, `{detector}`, `{start}`, `{end}`, `{duration}`, `{pre_pad_ms}`, `{post_pad_ms}`, `{basename}`, `{sample_id}`, `{total}`, and any custom segment attributes as `{attr_<name>}`. SpectroSampler embeds metadata (Title/Artist/Album/Year/Track plus token-rendered notes) into each output file. If FFmpeg encounters an error, a diagnostic dialog lists the exact command and actionable follow-up steps.
 
-When ready, choose **File → Export Samples** (`Ctrl+E`). Only enabled (checked) columns are included. Exported filenames include the detector name, index, optional per-sample Name slug, and source file id, and they are sanitized automatically so reserved characters or Windows device names never derail the export on any platform.
-
-> Screenshot placeholder: `docs/images/export-menu.png`
+> Screenshot placeholder: `docs/images/export-dialog.png`
 
 ---
 
@@ -213,7 +207,7 @@ When ready, choose **File → Export Samples** (`Ctrl+E`). Only enabled (checked
 - **Manual Save** – `Ctrl+S` writes the current `.ssproj`. `Ctrl+Shift+S` prompts for a new filename.
 - **Unsaved Changes Prompt** – Closing the window or quitting the app with modifications opens a Save/Discard/Cancel dialog.
 - **Recent Lists** – Clear stale entries from Settings → Clear Recent Projects/Audio.
-- **Detection & Export Defaults** – Thresholds, timing guards, overlap behavior, and export format/padding/normalization choices persist per-user and reload with each project, so tweaking them once saves the preference for future sessions.
+- **Detection & Export Defaults** – Thresholds, timing guards, overlap behavior, and export settings (formats, audio parameters, padding, normalization, bandpass, metadata, filename template, destination) persist per-user and reload with each project unless you override them inside the project file.
 - **Layout Preservation** – Splitter positions for the settings/editor, player/waveform/spectrogram stack, navigator, and info table are stored in the project file; collapsing a panel keeps it collapsed on reopen.
 
 Project files are plain JSON and include audio paths, detection/export settings, grid config, and window layout. If the referenced audio is missing, SpectroSampler prompts to relink it when opening the project.

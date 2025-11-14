@@ -117,28 +117,61 @@ def test_project_round_trip_persists_overlap_preferences(tmp_path):
 
 def test_export_settings_round_trip(tmp_path, monkeypatch):
     """Export settings should persist across manager instances."""
+    from spectrosampler.gui.export_models import ExportBatchSettings
+
     monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
 
-    snapshot = {
-        "export_pre_pad_ms": 75.0,
-        "export_post_pad_ms": 150.0,
-        "export_format": "flac",
-        "export_sample_rate": 48000,
-        "export_bit_depth": "24",
-        "export_channels": "stereo",
-    }
+    batch = ExportBatchSettings(
+        formats=["flac", "mp3"],
+        sample_rate_hz=48_000,
+        bit_depth="24",
+        channels="stereo",
+        pre_pad_ms=75.0,
+        post_pad_ms=150.0,
+        normalize=True,
+        bandpass_low_hz=120.0,
+        bandpass_high_hz=8000.0,
+        filename_template="{basename}_{index:03d}_{format}",
+        output_directory=str(tmp_path / "exports"),
+        artist="Test Artist",
+        album="Test Album",
+        year=2025,
+        notes="Export notes",
+    )
 
     manager = SettingsManager()
-    manager.set_export_settings(snapshot)
+    manager.set_export_batch_settings(batch)
 
     other = SettingsManager()
-    loaded = other.get_export_settings()
-    assert loaded["export_pre_pad_ms"] == pytest.approx(75.0)
-    assert loaded["export_post_pad_ms"] == pytest.approx(150.0)
-    assert loaded["export_format"] == "flac"
-    assert loaded["export_sample_rate"] == 48000
-    assert loaded["export_bit_depth"] == "24"
-    assert loaded["export_channels"] == "stereo"
+    loaded = other.get_export_batch_settings()
+    assert loaded.pre_pad_ms == pytest.approx(75.0)
+    assert loaded.post_pad_ms == pytest.approx(150.0)
+    assert loaded.formats == ["flac", "mp3"]
+    assert loaded.sample_rate_hz == 48_000
+    assert loaded.bit_depth == "24"
+    assert loaded.channels == "stereo"
+    assert loaded.normalize is True
+    assert loaded.bandpass_low_hz == pytest.approx(120.0)
+    assert loaded.bandpass_high_hz == pytest.approx(8000.0)
+    assert loaded.filename_template == "{basename}_{index:03d}_{format}"
+    assert loaded.output_directory == str(tmp_path / "exports")
+    assert loaded.artist == "Test Artist"
+    assert loaded.album == "Test Album"
+    assert loaded.year == 2025
+    assert loaded.notes == "Export notes"
+
+
+def test_compute_sample_id_prefers_attrs():
+    """compute_sample_id should prefer explicit IDs when present."""
+    from spectrosampler.detectors.base import Segment
+    from spectrosampler.gui.export_models import compute_sample_id
+
+    segment = Segment(start=0.5, end=1.5, detector="test", score=0.9, attrs={"id": "abc123"})
+    assert compute_sample_id(3, segment) == "abc123"
+
+    segment.attrs.pop("id")
+    auto_id = compute_sample_id(3, segment)
+    assert auto_id.startswith("3-0.500000-1.500000")
 
 
 def test_player_auto_play_next_preference_round_trip(tmp_path, monkeypatch):

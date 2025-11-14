@@ -46,6 +46,8 @@ class ProjectData:
     segments: list[dict[str, Any]] = field(default_factory=list)
     detection_settings: dict[str, Any] = field(default_factory=dict)
     export_settings: dict[str, Any] = field(default_factory=dict)
+    export_overrides: list[dict[str, Any]] = field(default_factory=list)
+    export_resume_state: dict[str, Any] = field(default_factory=dict)
     grid_settings: dict[str, Any] = field(default_factory=dict)
     ui_state: UIState = field(default_factory=UIState)
 
@@ -213,6 +215,8 @@ def save_project(project_data: ProjectData, path: Path) -> None:
         "segments": project_data.segments,
         "detection_settings": project_data.detection_settings,
         "export_settings": project_data.export_settings,
+        "export_overrides": project_data.export_overrides,
+        "export_resume_state": project_data.export_resume_state,
         "grid_settings": project_data.grid_settings,
         "ui_state": {
             "view_start": project_data.ui_state.view_start,
@@ -303,6 +307,8 @@ def load_project(path: Path) -> ProjectData:
         segments=list(data_dict.get("segments", [])),
         detection_settings=dict(data_dict.get("detection_settings", {})),
         export_settings=dict(data_dict.get("export_settings", {})),
+        export_overrides=list(data_dict.get("export_overrides", [])),
+        export_resume_state=dict(data_dict.get("export_resume_state", {})),
         grid_settings=dict(data_dict.get("grid_settings", {})),
         ui_state=ui_state,
     )

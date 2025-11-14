@@ -14,6 +14,7 @@ from PySide6.QtGui import QAction, QActionGroup, QKeySequence
 from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
 from PySide6.QtWidgets import (
     QApplication,
+    QDialog,
     QFileDialog,
     QInputDialog,
     QLabel,
@@ -38,6 +39,15 @@ from spectrosampler.gui.autosave import AutoSaveManager
 from spectrosampler.gui.detection_manager import DetectionManager
 from spectrosampler.gui.detection_settings import DetectionSettingsPanel
 from spectrosampler.gui.diagnostics_dialog import DiagnosticsDialog
+from spectrosampler.gui.export_dialog import ExportDialog
+from spectrosampler.gui.export_models import (
+    ExportBatchSettings,
+    ExportSampleOverride,
+    compute_sample_id,
+    parse_overrides,
+    serialise_overrides,
+)
+from spectrosampler.gui.export_progress_dialog import ExportProgressDialog
 from spectrosampler.gui.grid_manager import GridManager, GridMode, GridSettings, Subdivision
 from spectrosampler.gui.loading_screen import LoadingScreen
 from spectrosampler.gui.navigator_scrollbar import NavigatorScrollbar
@@ -216,13 +226,9 @@ class MainWindow(QMainWindow):
         self._grid_settings.enabled = False
 
         # Export settings (stored in main window)
-        self._export_pre_pad_ms = 0.0
-        self._export_post_pad_ms = 0.0
-        self._export_format = "wav"
-        self._export_sample_rate: int | None = None
-        self._export_bit_depth: str | None = None
-        self._export_channels: str | None = None
-        self._export_normalize = False
+        self._export_batch_settings: ExportBatchSettings | None = None
+        self._export_overrides: list[ExportSampleOverride] = []
+        self._export_resume_state: dict[str, Any] = {}
 
         # UI refresh rate settings
         self._ui_refresh_rate_enabled = True
@@ -471,62 +477,6 @@ class MainWindow(QMainWindow):
         exit_action.setShortcut(QKeySequence.StandardKey.Quit)
         exit_action.triggered.connect(self.close)
         file_menu.addAction(exit_action)
-
-        # Export menu
-        export_menu = menubar.addMenu("&Export")
-
-        # Export pre-padding
-        export_pre_pad_action = QAction("Export &Pre-padding...", self)
-        export_pre_pad_action.triggered.connect(self._on_export_pre_pad_settings)
-        export_menu.addAction(export_pre_pad_action)
-
-        # Export post-padding
-        export_post_pad_action = QAction("Export &Post-padding...", self)
-        export_post_pad_action.triggered.connect(self._on_export_post_pad_settings)
-        export_menu.addAction(export_post_pad_action)
-
-        export_menu.addSeparator()
-
-        # Format
-        format_menu = export_menu.addMenu("&Format")
-        self._export_format_wav_action = QAction("&WAV", self)
-        self._export_format_wav_action.setCheckable(True)
-        self._export_format_wav_action.setChecked(True)
-        self._export_format_wav_action.triggered.connect(
-            lambda: self._on_export_format_changed("wav")
-        )
-        format_menu.addAction(self._export_format_wav_action)
-
-        self._export_format_flac_action = QAction("&FLAC", self)
-        self._export_format_flac_action.setCheckable(True)
-        self._export_format_flac_action.triggered.connect(
-            lambda: self._on_export_format_changed("flac")
-        )
-        format_menu.addAction(self._export_format_flac_action)
-
-        # Sample rate
-        sample_rate_action = QAction("&Sample Rate...", self)
-        sample_rate_action.triggered.connect(self._on_export_sample_rate_settings)
-        export_menu.addAction(sample_rate_action)
-
-        # Bit depth
-        bit_depth_action = QAction("&Bit Depth...", self)
-        bit_depth_action.triggered.connect(self._on_export_bit_depth_settings)
-        export_menu.addAction(bit_depth_action)
-
-        # Channels
-        channels_action = QAction("&Channels...", self)
-        channels_action.triggered.connect(self._on_export_channels_settings)
-        export_menu.addAction(channels_action)
-
-        export_menu.addSeparator()
-
-        # Peak Normalization
-        self._export_normalize_action = QAction("Peak &Normalization", self)
-        self._export_normalize_action.setCheckable(True)
-        self._export_normalize_action.setChecked(False)
-        self._export_normalize_action.triggered.connect(self._on_export_normalize_toggled)
-        export_menu.addAction(self._export_normalize_action)
 
         # Edit menu
         edit_menu = menubar.addMenu("&Edit")
@@ -1025,12 +975,14 @@ class MainWindow(QMainWindow):
             settings = self._settings_panel.get_settings()
             settings.analysis_resample_strategy = self._active_analysis_resample_strategy
             # Initialize export settings
-            settings.export_pre_pad_ms = self._export_pre_pad_ms
-            settings.export_post_pad_ms = self._export_post_pad_ms
-            settings.format = self._export_format
-            settings.sample_rate = self._export_sample_rate
-            settings.bit_depth = self._export_bit_depth
-            settings.channels = self._export_channels
+            if self._export_batch_settings:
+                batch = self._export_batch_settings
+                settings.export_pre_pad_ms = batch.pre_pad_ms
+                settings.export_post_pad_ms = batch.post_pad_ms
+                settings.format = batch.formats[0] if batch.formats else "wav"
+                settings.sample_rate = batch.sample_rate_hz
+                settings.bit_depth = batch.bit_depth
+                settings.channels = batch.channels
             self._pipeline_wrapper = PipelineWrapper(settings)
             self._detection_manager.set_pipeline_wrapper(self._pipeline_wrapper)
 
@@ -1139,15 +1091,12 @@ class MainWindow(QMainWindow):
             detection_settings = _processing_settings_to_dict(settings)
 
         # Collect export settings
-        export_settings = {
-            "export_pre_pad_ms": self._export_pre_pad_ms,
-            "export_post_pad_ms": self._export_post_pad_ms,
-            "export_format": self._export_format,
-            "export_sample_rate": self._export_sample_rate,
-            "export_bit_depth": self._export_bit_depth,
-            "export_channels": self._export_channels,
-            "export_normalize": self._export_normalize,
-        }
+        export_settings = (
+            self._export_batch_settings.to_dict()
+            if self._export_batch_settings
+            else ExportBatchSettings().to_dict()
+        )
+        export_overrides = serialise_overrides(self._export_overrides)
 
         # Collect grid settings
         grid_settings = {}
@@ -1182,6 +1131,8 @@ class MainWindow(QMainWindow):
             segments=segments,
             detection_settings=detection_settings,
             export_settings=export_settings,
+            export_overrides=export_overrides,
+            export_resume_state=dict(self._export_resume_state),
             grid_settings=grid_settings,
             ui_state=ui_state,
         )
@@ -1265,38 +1216,23 @@ class MainWindow(QMainWindow):
 
         # Restore export settings
         if data.export_settings:
-            self._export_pre_pad_ms = float(data.export_settings.get("export_pre_pad_ms", 0.0))
-            self._export_post_pad_ms = float(data.export_settings.get("export_post_pad_ms", 0.0))
-            self._export_format = str(data.export_settings.get("export_format", "wav"))
-            self._export_sample_rate = (
-                int(data.export_settings["export_sample_rate"])
-                if data.export_settings.get("export_sample_rate") is not None
-                else None
-            )
-            self._export_bit_depth = (
-                str(data.export_settings["export_bit_depth"])
-                if data.export_settings.get("export_bit_depth") is not None
-                else None
-            )
-            self._export_channels = (
-                str(data.export_settings["export_channels"])
-                if data.export_settings.get("export_channels") is not None
-                else None
-            )
-            self._export_normalize = bool(data.export_settings.get("export_normalize", False))
-            # Update export format menu actions
-            if self._export_format == "wav":
-                if hasattr(self, "_export_format_wav_action"):
-                    self._export_format_wav_action.setChecked(True)
-                if hasattr(self, "_export_format_flac_action"):
-                    self._export_format_flac_action.setChecked(False)
-            elif self._export_format == "flac":
-                if hasattr(self, "_export_format_flac_action"):
-                    self._export_format_flac_action.setChecked(True)
-                if hasattr(self, "_export_format_wav_action"):
-                    self._export_format_wav_action.setChecked(False)
-            self._apply_export_settings_to_pipeline()
-            self._persist_export_settings()
+            try:
+                self._export_batch_settings = ExportBatchSettings.from_dict(data.export_settings)
+            except (ValueError, TypeError, KeyError) as exc:
+                logger.warning("Failed to restore export settings: %s", exc, exc_info=exc)
+                self._export_batch_settings = ExportBatchSettings()
+        else:
+            self._export_batch_settings = ExportBatchSettings()
+
+        try:
+            self._export_overrides = parse_overrides(data.export_overrides)
+        except ValueError as exc:
+            logger.warning("Failed to restore export overrides: %s", exc, exc_info=exc)
+            self._export_overrides = []
+
+        self._export_resume_state = dict(data.export_resume_state or {})
+
+        self._apply_export_settings_to_pipeline()
 
         # Restore grid settings
         if data.grid_settings:
@@ -1980,12 +1916,16 @@ class MainWindow(QMainWindow):
             self._pending_analysis_resample_strategy = None
             self._pipeline_wrapper.settings = updated_settings
             # Update export settings
-            self._pipeline_wrapper.settings.export_pre_pad_ms = self._export_pre_pad_ms
-            self._pipeline_wrapper.settings.export_post_pad_ms = self._export_post_pad_ms
-            self._pipeline_wrapper.settings.format = self._export_format
-            self._pipeline_wrapper.settings.sample_rate = self._export_sample_rate
-            self._pipeline_wrapper.settings.bit_depth = self._export_bit_depth
-            self._pipeline_wrapper.settings.channels = self._export_channels
+            if self._export_batch_settings:
+                batch = self._export_batch_settings
+                self._pipeline_wrapper.settings.export_pre_pad_ms = batch.pre_pad_ms
+                self._pipeline_wrapper.settings.export_post_pad_ms = batch.post_pad_ms
+                self._pipeline_wrapper.settings.format = (
+                    batch.formats[0] if batch.formats else "wav"
+                )
+                self._pipeline_wrapper.settings.sample_rate = batch.sample_rate_hz
+                self._pipeline_wrapper.settings.bit_depth = batch.bit_depth
+                self._pipeline_wrapper.settings.channels = batch.channels
 
             # Preserve existing segments before re-detect (for overlap workflow)
             try:
@@ -2253,58 +2193,51 @@ class MainWindow(QMainWindow):
         if not self._pipeline_wrapper:
             return
         pipeline_settings = self._pipeline_wrapper.settings
-        pipeline_settings.export_pre_pad_ms = self._export_pre_pad_ms
-        pipeline_settings.export_post_pad_ms = self._export_post_pad_ms
-        pipeline_settings.format = self._export_format
-        pipeline_settings.sample_rate = self._export_sample_rate
-        pipeline_settings.bit_depth = self._export_bit_depth
-        pipeline_settings.channels = self._export_channels
+        if not self._export_batch_settings:
+            return
+
+        batch = self._export_batch_settings
+
+        pipeline_settings.export_pre_pad_ms = batch.pre_pad_ms
+        pipeline_settings.export_post_pad_ms = batch.post_pad_ms
+        pipeline_settings.format = batch.formats[0] if batch.formats else "wav"
+        pipeline_settings.export_formats = list(batch.formats)
+        pipeline_settings.sample_rate = batch.sample_rate_hz
+        pipeline_settings.bit_depth = batch.bit_depth
+        pipeline_settings.channels = batch.channels
+        pipeline_settings.export_bandpass_low_hz = batch.bandpass_low_hz
+        pipeline_settings.export_bandpass_high_hz = batch.bandpass_high_hz
+        pipeline_settings.export_normalize = batch.normalize
+        pipeline_settings.export_filename_template = batch.filename_template
+        pipeline_settings.export_artist = batch.artist
+        pipeline_settings.export_album = batch.album
+        pipeline_settings.export_year = batch.year
+        pipeline_settings.export_output_directory = batch.output_directory
 
     def _persist_export_settings(self) -> None:
         """Persist export settings snapshot."""
-        snapshot = {
-            "export_pre_pad_ms": self._export_pre_pad_ms,
-            "export_post_pad_ms": self._export_post_pad_ms,
-            "export_format": self._export_format,
-            "export_sample_rate": self._export_sample_rate,
-            "export_bit_depth": self._export_bit_depth,
-            "export_channels": self._export_channels,
-            "export_normalize": self._export_normalize,
-        }
+        if not self._export_batch_settings:
+            return
+
         try:
-            self._settings_manager.set_export_settings(snapshot)
+            self._settings_manager.set_export_batch_settings(self._export_batch_settings)
         except (TypeError, ValueError, RuntimeError) as exc:
             logger.debug("Failed to persist export settings: %s", exc, exc_info=exc)
 
     def _load_persisted_export_settings(self) -> None:
         """Load persisted export settings into runtime state."""
+
         try:
-            snapshot = self._settings_manager.get_export_settings()
-        except (RuntimeError, OSError) as exc:
+            self._export_batch_settings = self._settings_manager.get_export_batch_settings()
+        except (RuntimeError, OSError, ValueError) as exc:
             logger.debug("Failed to load persisted export settings: %s", exc, exc_info=exc)
-            snapshot = {}
+            self._export_batch_settings = ExportBatchSettings()
 
-        if snapshot:
-            self._export_pre_pad_ms = float(
-                snapshot.get("export_pre_pad_ms", self._export_pre_pad_ms)
-            )
-            self._export_post_pad_ms = float(
-                snapshot.get("export_post_pad_ms", self._export_post_pad_ms)
-            )
-            format_value = snapshot.get("export_format", self._export_format)
-            if isinstance(format_value, str):
-                self._export_format = format_value
-            self._export_sample_rate = snapshot.get("export_sample_rate", self._export_sample_rate)
-            self._export_bit_depth = snapshot.get("export_bit_depth", self._export_bit_depth)
-            self._export_channels = snapshot.get("export_channels", self._export_channels)
-            self._export_normalize = snapshot.get("export_normalize", False)
-
-        if hasattr(self, "_export_format_wav_action"):
-            self._export_format_wav_action.setChecked(self._export_format == "wav")
-        if hasattr(self, "_export_format_flac_action"):
-            self._export_format_flac_action.setChecked(self._export_format == "flac")
-        if hasattr(self, "_export_normalize_action"):
-            self._export_normalize_action.setChecked(self._export_normalize)
+        try:
+            self._export_overrides = self._settings_manager.get_export_sample_overrides()
+        except (RuntimeError, OSError, ValueError) as exc:
+            logger.debug("Failed to load persisted export overrides: %s", exc, exc_info=exc)
+            self._export_overrides = []
 
         self._apply_export_settings_to_pipeline()
 
@@ -3987,40 +3920,156 @@ class MainWindow(QMainWindow):
             )
             return
 
-        # Get output directory
-        output_dir = QFileDialog.getExistingDirectory(self, "Select Output Directory")
+        # Determine enabled segments
+        enabled_indices: list[int] = []
+        enabled_segments: list[Segment] = []
+        for index, segment in enumerate(self._pipeline_wrapper.current_segments):
+            enabled = True
+            if hasattr(segment, "attrs") and segment.attrs is not None:
+                enabled = segment.attrs.get("enabled", True)
+            if enabled:
+                enabled_indices.append(index)
+                enabled_segments.append(segment)
 
-        if output_dir:
-            # Get selected indices (row 0 checkboxes represented by segment enabled flag)
-            selected_indices = []
-            for i, seg in enumerate(self._pipeline_wrapper.current_segments):
-                enabled = True
-                if hasattr(seg, "attrs") and seg.attrs is not None:
-                    enabled = seg.attrs.get("enabled", True)
-                if enabled:
-                    selected_indices.append(i)
+        if not enabled_indices:
+            QMessageBox.warning(self, "No Selection", "Please enable samples to export.")
+            return
 
-            if not selected_indices:
-                QMessageBox.warning(self, "No Selection", "Please select samples to export.")
+        if not self._export_batch_settings:
+            self._export_batch_settings = ExportBatchSettings()
+
+        dialog = ExportDialog(
+            parent=self,
+            batch_settings=self._export_batch_settings,
+            overrides=self._export_overrides,
+            segments=enabled_segments,
+            audio_path=self._pipeline_wrapper.current_audio_path,
+        )
+
+        if dialog.exec() != QDialog.DialogCode.Accepted:
+            return
+
+        updated_batch = dialog.batch_settings()
+        updated_overrides = dialog.overrides()
+        persist_defaults = dialog.should_persist_defaults()
+
+        output_directory = updated_batch.output_directory
+        if not output_directory:
+            output_directory = QFileDialog.getExistingDirectory(self, "Select Export Folder", "")
+            if not output_directory:
                 return
+            updated_batch.output_directory = output_directory
 
-            # Export samples
+        output_path = Path(output_directory)
+        try:
+            output_path.mkdir(parents=True, exist_ok=True)
+        except OSError as exc:
+            QMessageBox.critical(
+                self,
+                "Export Error",
+                f"Unable to create or access the export folder:\n{exc}",
+            )
+            return
+
+        # Update in-memory state
+        self._export_batch_settings = updated_batch
+        self._export_overrides = updated_overrides
+        self._apply_export_settings_to_pipeline()
+        self._project_modified = True
+        self._update_window_title()
+
+        if persist_defaults:
+            self._persist_export_settings()
             try:
-                count = self._pipeline_wrapper.export_samples(
-                    Path(output_dir), selected_indices, normalize=self._export_normalize
-                )
-                QMessageBox.information(
-                    self, "Export Complete", f"Exported {count} samples to:\n{output_dir}"
-                )
-                self._status_label.setText(f"Exported {count} samples")
-            except (FFmpegError, OSError, ValueError, RuntimeError) as e:
-                logger.error("Failed to export samples: %s", e, exc_info=e)
-                if isinstance(e, FFmpegError):
-                    self._show_ffmpeg_failure_dialog("Export Error", e)
-                else:
-                    QMessageBox.critical(
-                        self, "Export Error", f"Failed to export samples:\n{str(e)}"
-                    )
+                self._settings_manager.set_export_sample_overrides(updated_overrides)
+            except (RuntimeError, OSError, ValueError) as exc:
+                logger.debug("Failed to persist export overrides: %s", exc, exc_info=exc)
+
+        # Build mapping of sample identifiers for resume support
+        id_lookup: dict[str, int] = {}
+        for local_index, segment in zip(enabled_indices, enabled_segments, strict=True):
+            sample_id = compute_sample_id(local_index, segment)
+            id_lookup[sample_id] = local_index
+
+        selected_indices = list(enabled_indices)
+        resume_state = dict(self._export_resume_state or {})
+        pending_ids = [sid for sid in resume_state.get("pending_ids", []) if sid in id_lookup]
+        if pending_ids:
+            choice = QMessageBox.question(
+                self,
+                "Resume Export",
+                "A previous export was cancelled or interrupted.\n"
+                "Would you like to resume exporting the remaining samples?",
+                QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+            )
+            if choice == QMessageBox.StandardButton.Yes:
+                selected_indices = [id_lookup[sid] for sid in pending_ids]
+            else:
+                self._export_resume_state = {}
+                resume_state.clear()
+
+        manager = self._pipeline_wrapper.create_export_manager(
+            output_dir=output_path,
+            batch_settings=self._export_batch_settings,
+            overrides=self._export_overrides,
+        )
+
+        progress_dialog = ExportProgressDialog(self)
+        progress_dialog.bind_manager(manager)
+        manager.start(selected_indices)
+        progress_dialog.exec()
+
+        summary = progress_dialog.summary
+        if summary is None:
+            QMessageBox.critical(
+                self,
+                "Export Error",
+                "Export was interrupted due to an unexpected error. Check logs for details.",
+            )
+            return
+
+        # Determine remaining samples for resume
+        if summary.cancelled or summary.failed:
+            pending = list(summary.remaining_sample_ids)
+            if not pending:
+                pending = [
+                    sid for sid in id_lookup.keys() if summary.resume_state.get(sid) != "completed"
+                ]
+            if pending:
+                from datetime import datetime
+
+                self._export_resume_state = {
+                    "pending_ids": pending,
+                    "total_ids": list(id_lookup.keys()),
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "output_dir": str(output_path),
+                }
+            else:
+                self._export_resume_state = {}
+            self._project_modified = True
+            self._update_window_title()
+        else:
+            self._export_resume_state = {}
+            self._project_modified = True
+            self._update_window_title()
+
+        if summary.cancelled:
+            QMessageBox.information(
+                self,
+                "Export Cancelled",
+                "Export cancelled before completion. Some samples may have been created.",
+            )
+            self._status_label.setText("Export cancelled")
+            return
+
+        if summary.failed:
+            QMessageBox.warning(
+                self,
+                "Export Completed with Errors",
+                f"{len(summary.failed)} sample(s) failed to export. Review the export log for details.",
+            )
+
+        self._status_label.setText(f"Exported {summary.successful_count} sample(s)")
 
     def _on_about(self) -> None:
         """Handle about action."""
@@ -4418,136 +4467,6 @@ class MainWindow(QMainWindow):
                 self._pipeline_wrapper.current_segments.sort(key=lambda s: s.start)
         except (AttributeError, TypeError) as exc:
             logger.debug("Auto reorder failed: %s", exc, exc_info=exc)
-
-    # Export menu handlers
-    def _on_export_pre_pad_settings(self) -> None:
-        """Handle export pre-padding settings dialog."""
-        from PySide6.QtWidgets import QInputDialog
-
-        value, ok = QInputDialog.getDouble(
-            self,
-            "Export Pre-padding",
-            "Pre-padding (ms):",
-            self._export_pre_pad_ms,
-            0.0,
-            50000.0,
-            0,
-        )
-        if ok:
-            self._export_pre_pad_ms = value
-            self._apply_export_settings_to_pipeline()
-            self._persist_export_settings()
-            # Mark as modified (export settings changed)
-            self._project_modified = True
-            self._update_window_title()
-
-    def _on_export_post_pad_settings(self) -> None:
-        """Handle export post-padding settings dialog."""
-        from PySide6.QtWidgets import QInputDialog
-
-        value, ok = QInputDialog.getDouble(
-            self,
-            "Export Post-padding",
-            "Post-padding (ms):",
-            self._export_post_pad_ms,
-            0.0,
-            50000.0,
-            0,
-        )
-        if ok:
-            self._export_post_pad_ms = value
-            self._apply_export_settings_to_pipeline()
-            self._persist_export_settings()
-            # Mark as modified (export settings changed)
-            self._project_modified = True
-            self._update_window_title()
-
-    def _on_export_format_changed(self, format: str) -> None:
-        """Handle export format change."""
-        self._export_format = format
-        # Update action states
-        self._export_format_wav_action.setChecked(format == "wav")
-        self._export_format_flac_action.setChecked(format == "flac")
-        self._apply_export_settings_to_pipeline()
-
-    def _on_export_normalize_toggled(self, checked: bool) -> None:
-        """Handle export normalization toggle."""
-        self._export_normalize = checked
-        self._apply_export_settings_to_pipeline()
-        self._persist_export_settings()
-        # Mark as modified (export settings changed)
-        self._project_modified = True
-        self._update_window_title()
-
-    def _on_export_sample_rate_settings(self) -> None:
-        """Handle export sample rate settings dialog."""
-        from PySide6.QtWidgets import QInputDialog
-
-        current = self._export_sample_rate if self._export_sample_rate else 0
-        value, ok = QInputDialog.getInt(
-            self, "Export Sample Rate", "Sample rate (Hz, 0 for original):", current, 0, 192000, 0
-        )
-        if ok:
-            self._export_sample_rate = value if value > 0 else None
-            self._apply_export_settings_to_pipeline()
-            self._persist_export_settings()
-            # Mark as modified (export settings changed)
-            self._project_modified = True
-            self._update_window_title()
-
-    def _on_export_bit_depth_settings(self) -> None:
-        """Handle export bit depth settings dialog."""
-        from PySide6.QtWidgets import QInputDialog
-
-        options = ["16", "24", "32f", "None (original)"]
-        current_index = 0
-        if self._export_bit_depth:
-            try:
-                current_index = options.index(self._export_bit_depth)
-            except ValueError:
-                current_index = 0
-        else:
-            current_index = 3  # None
-        value, ok = QInputDialog.getItem(
-            self, "Export Bit Depth", "Bit depth:", options, current_index, False
-        )
-        if ok:
-            if value == "None (original)":
-                self._export_bit_depth = None
-            else:
-                self._export_bit_depth = value
-            self._apply_export_settings_to_pipeline()
-            self._persist_export_settings()
-            # Mark as modified (export settings changed)
-            self._project_modified = True
-            self._update_window_title()
-
-    def _on_export_channels_settings(self) -> None:
-        """Handle export channels settings dialog."""
-        from PySide6.QtWidgets import QInputDialog
-
-        options = ["mono", "stereo", "None (original)"]
-        current_index = 0
-        if self._export_channels:
-            try:
-                current_index = options.index(self._export_channels)
-            except ValueError:
-                current_index = 0
-        else:
-            current_index = 2  # None
-        value, ok = QInputDialog.getItem(
-            self, "Export Channels", "Channels:", options, current_index, False
-        )
-        if ok:
-            if value == "None (original)":
-                self._export_channels = None
-            else:
-                self._export_channels = value
-            self._apply_export_settings_to_pipeline()
-            self._persist_export_settings()
-            # Mark as modified (export settings changed)
-            self._project_modified = True
-            self._update_window_title()
 
     # UI refresh rate handlers
     def _on_ui_refresh_rate_enabled_changed(self, enabled: bool) -> None:

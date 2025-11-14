@@ -12,7 +12,7 @@ SpectroSampler is delivered as a GUI desktop app. Command-line usage is limited 
 - **Detection Engine** – Multiple detectors (auto mix, voice VAD, transient, non-silence energy, spectral interestingness) with per-mode thresholds, merge rules, gap/duration guards, and multi-core processing control (`CPU workers`). Voice VAD pre-filters audio with a configurable 200–4500 Hz band-pass before WebRTC scoring so speech-focused projects stay cleaner.
 - **Editing Surface** – High-resolution spectrogram (0.5×–32× zoom) backed by a synchronized waveform preview, navigator overview, draggable sample markers, context actions (play, enable/disable toggle, rename/delete selections, center/fill view), and lockable grid snapping (time or musical bars).
 - **Playback & Review** – Integrated sample player with looping, auto-play-next toggle, scrub bar, next/previous navigation, live playback indicator on the spectrogram, and sample table shortcuts (center/fill/play/delete).
-- **Export Pipeline** – Per-project format, sample rate, bit depth, channel configuration, padding, and optional peak normalization. Export selected samples without re-encoding by default (WAV/FLAC supported out of the box).
+- **Export Workflow** – Advanced export dialog with Global/Samples tabs, live waveform & spectrogram previews (respecting padding and bandpass filters), dynamic filename preview showing all output filenames per sample, per-batch metadata (Artist/Album/Year), per-sample title customization (always editable, applies when Custom checkbox is enabled), per-sample overrides (padding, normalization, bandpass, notes), multi-format output (WAV/FLAC/MP3), filename templating, persistent settings, and resumable batch exports with pause/resume controls.
 - **Session Safety** – Project files capture every setting (including overlap resolution defaults and editor layout), autosave keeps rotating backups, the overlap dialog protects existing edits when re-running detection, and a Help → Diagnostics panel surfaces FFmpeg and audio device information for quick troubleshooting.
 
 > Looking for GUI usage details and walkthrough screenshots? See `docs/GUI_GUIDE.md`.
@@ -122,13 +122,13 @@ spectrosampler-gui --version          Show version and exit
 - Limit UI refresh rate if working on large projects (View → Limit UI Refresh Rate → Refresh Rate).
 
 ### Exporting
-- Choose format, sample rate, bit depth, and channels from the Export menu (set sample rate to `0` or pick "None (original)" for bit depth/channels to inherit source values).
-- Configure pre/post padding to add silence to each export.
-- Enable Peak Normalization (Export → Peak Normalization) to normalize each sample to -0.1 dBFS without clipping.
-- Optionally enter a per-sample Name in the info table; it slots into the filename slug between the index and time range.
-- Only enabled & checked samples in the info table are exported. Default format preserves original audio (no re-encode if parameters match).
-- Exported filenames are sanitized automatically, so reserved characters and Windows device names never block writing files on Windows, macOS, or Linux.
-- If FFmpeg encounters an error during export, SpectroSampler surfaces a detailed dialog with the exact command that failed plus actionable suggestions (verify source paths, check diagnostics, confirm folder permissions) so you can correct the issue and retry immediately.
+- Press `Ctrl+E` (File → Export Samples…) to open the export dialog. The **Global** tab covers formats (select multiple), sample rate/bit depth/channels, pre/post padding, peak normalization, bandpass filters (low/high cut fields are always editable with 20Hz/20000Hz defaults, but only apply when the option is enabled), metadata defaults (Artist/Album/Year), filename template, and destination folder.
+- Use the **Samples** tab to step through enabled samples with live waveform/spectrogram previews. The top-right corner shows a filename preview listing all output filenames for the current sample (one per selected format, newline-delimited) that updates automatically when formats, template, padding, metadata, or sample overrides change. The **Title** section (above the Per-sample Overrides) provides a text field that is always editable; enable the **Custom** checkbox to apply your custom title (otherwise it defaults to the sample name from the info table, or "sample" if empty). The **Per-sample Overrides** section lets you override padding, normalization, bandpass (fields are always editable, but only apply when Override is checked), and notes on a per-sample basis. Overrides win over the global defaults.
+- Click **Export Sample(s)** to launch the batch. The progress dialog reports ETA, supports pause/resume, and allows safe cancel. Cancelled runs store the unfinished sample IDs so the next launch can resume immediately.
+- Enable "Save as default export settings" to persist the current Global settings for new projects. Per-project overrides and resume progress live inside the project file and reload automatically.
+- Exported filenames follow the template (default `{id}_{title}_{start}_{duration}`) and sanitize illegal characters automatically. `{id}` is a zero-padded sample index (`0001`…`9999`), and `{title}` comes from the optional sample name in the info table (falling back to `sample` when empty), or from the custom title if the Custom checkbox is enabled in the Samples tab. One file per selected format is written per sample with embedded metadata.
+- Templates (and the Notes field) accept rich tokens pulled from metadata and the sample table: `{id}`, `{title}`, `{artist}`, `{album}`, `{year}`, `{format}`, `{detector}`, `{start}`, `{end}`, `{duration}`, `{pre_pad_ms}`, `{post_pad_ms}`, `{basename}`, `{sample_id}`, `{total}` and any custom attributes as `{attr_<name>}`. Use them to build descriptive filenames or notes like `"{id}_{title}_{detector}"` or `"Start={start}s | Detector={detector}"`.
+- If FFmpeg encounters an error during export, SpectroSampler surfaces a detailed dialog with the exact command plus actionable suggestions (verify source paths, check diagnostics, confirm folder permissions) so you can correct the issue and retry immediately.
 
 ---
 
@@ -139,7 +139,7 @@ spectrosampler-gui --version          Show version and exit
 3. Audition results with the sample player; loop tricky regions when needed.
 4. Fine-tune boundaries directly on the spectrogram or by editing numbers in the info table.
 5. Save a project file to capture the session (`Ctrl+S`).
-6. Choose export parameters and run **Export Samples** (`Ctrl+E`).
+6. Open the **Export Samples** dialog (`Ctrl+E`), review Global/Sample settings, then run the batch.
 
 ---
 
@@ -184,7 +184,7 @@ Project saves capture:
 - Audio file reference (re-locate if moved)
 - Detection settings, timing guards, filter values
 - Sample metadata (start/end/duration, detector name, enabled flag, per-sample Name)
-- Export configuration (format, rate, padding, channels, bit depth)
+- Export configuration (formats, sample rate/bit depth/channels, padding, normalization, bandpass filters, filename template, metadata defaults, destination folder, per-sample overrides, export resume state)
 - Grid settings, overlap dialog defaults, and UI layout (splitter sizes, panels hidden/shown)
 - Waveform preview visibility and height
 - Recent playback state (current view, zoom)
