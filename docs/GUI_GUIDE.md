@@ -43,7 +43,7 @@ All splitters are draggable. Collapse the player or info table from the View men
 ### 2.2 Menus & Key Commands
 
 - **File** – Project lifecycle (new/open/save), audio import, recent files, sample export.
-- **Edit** – Undo/redo, re-run detection, auto sample ordering, bulk delete/disable, project-wide **Enable All Samples** / **Disable All Samples**, overlap/duplicate removal and merging, Duration Edits (expand/contract, stretch from start/end).
+- **Edit** – Undo/redo, run detection, auto sample ordering, bulk delete/disable, project-wide **Enable All Samples** / **Disable All Samples**, overlap/duplicate removal and merging, Duration Edits (expand/contract, stretch from start/end).
 - **View** – Fit to Window, Zoom to Selection (`Ctrl+Shift+F`), toggle info table/player/waveform visibility, show disabled samples, refresh-rate limiter, grid settings, and theme selection (System/Dark/Light).
 - **Settings** – Autosave toggle/interval, clear recent projects/audio.
 - **Help** – Diagnostics panel (FFmpeg status, audio devices, environment), verbose logging toggle, and the about dialog.

@@ -136,7 +136,7 @@ spectrosampler-gui --version          Show version and exit
 ## Quick Start Checklist
 
 1. Launch SpectroSampler and open an audio file.
-2. Review detection settings, then press **Detect Samples**.
+2. Open the **Detect Samples** dialog (`Ctrl+D` or Edit → Detect Samples), review settings, then click **Detect Samples**.
 3. Audition results with the sample player; loop tricky regions when needed.
 4. Fine-tune boundaries directly on the spectrogram or by editing numbers in the info table.
 5. Save a project file to capture the session (`Ctrl+S`).
