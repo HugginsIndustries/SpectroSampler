@@ -1,8 +1,9 @@
 """Toolbar widget for tool mode selection."""
 
+from enum import Enum
 from pathlib import Path
 
-from PySide6.QtCore import QSize, Qt
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtGui import QIcon, QPainter, QPixmap
 from PySide6.QtSvg import QSvgRenderer
 from PySide6.QtWidgets import (
@@ -14,8 +15,18 @@ from PySide6.QtWidgets import (
 )
 
 
+class ToolMode(Enum):
+    """Tool mode enumeration."""
+
+    SELECT = "select"
+    EDIT = "edit"
+    CREATE = "create"
+
+
 class ToolbarWidget(QWidget):
     """Vertical toolbar widget with tool mode buttons."""
+
+    mode_changed = Signal(str)  # Emitted when tool mode changes (mode name as string)
 
     def __init__(self, parent: QWidget | None = None):
         """Initialize toolbar widget.
@@ -24,6 +35,8 @@ class ToolbarWidget(QWidget):
             parent: Parent widget.
         """
         super().__init__(parent)
+
+        self._current_mode = ToolMode.SELECT
 
         # Create layout
         layout = QVBoxLayout()
@@ -59,8 +72,9 @@ class ToolbarWidget(QWidget):
         # Create button group for mutually exclusive selection
         self._button_group = QButtonGroup(self)
         self._button_group.setExclusive(True)
+        self._button_group.buttonClicked.connect(self._on_button_clicked)
 
-        # Create mode buttons (non-functional placeholders for now)
+        # Create mode buttons
         self._select_button = QPushButton()
         self._select_button.setCheckable(True)
         self._select_button.setChecked(True)  # Default to Select mode
@@ -89,6 +103,29 @@ class ToolbarWidget(QWidget):
         self._create_button.setToolTip("Create")
         self._button_group.addButton(self._create_button, 2)
 
+        # Apply styling to make checked state visible
+        # Use orange accent color for checked state to match theme
+        button_style = """
+            QPushButton {
+                border: 1px solid #3C3C3C;
+                border-radius: 4px;
+                background-color: transparent;
+            }
+            QPushButton:checked {
+                background-color: rgba(239, 127, 34, 0.2);
+                border: 2px solid #EF7F22;
+            }
+            QPushButton:hover {
+                background-color: rgba(239, 127, 34, 0.1);
+            }
+            QPushButton:checked:hover {
+                background-color: rgba(239, 127, 34, 0.3);
+            }
+        """
+        self._select_button.setStyleSheet(button_style)
+        self._edit_button.setStyleSheet(button_style)
+        self._create_button.setStyleSheet(button_style)
+
         # Add buttons to tool group layout
         tool_layout.addWidget(self._select_button)
         tool_layout.addWidget(self._edit_button)
@@ -105,3 +142,27 @@ class ToolbarWidget(QWidget):
 
         # Set minimum width for toolbar (~75px total, half of original)
         self.setMinimumWidth(75)
+
+    def _on_button_clicked(self, button: QPushButton) -> None:
+        """Handle button click to change tool mode.
+
+        Args:
+            button: The button that was clicked.
+        """
+        if button == self._select_button:
+            self._current_mode = ToolMode.SELECT
+            self.mode_changed.emit(ToolMode.SELECT.value)
+        elif button == self._edit_button:
+            self._current_mode = ToolMode.EDIT
+            self.mode_changed.emit(ToolMode.EDIT.value)
+        elif button == self._create_button:
+            self._current_mode = ToolMode.CREATE
+            self.mode_changed.emit(ToolMode.CREATE.value)
+
+    def get_current_mode(self) -> ToolMode:
+        """Get current tool mode.
+
+        Returns:
+            Current ToolMode.
+        """
+        return self._current_mode

@@ -130,6 +130,7 @@ After detection, SpectroSampler compares the analysis copy’s duration to the o
 
 ### 4.2 Using the Sample Player
 
+- Use the **Select** tool mode (default) to click on samples or drag a selection box to select them. Use **Edit** mode to drag samples or resize their edges. Use **Create** mode to add new samples by dragging on empty space.
 - Select a sample to populate the player with ID, start/end, duration, and detector name.
 - Transport buttons provide play/pause/stop/next/previous control; `Space` plays the focused sample.
 - Toggle **Loop** to rehearse a region.
@@ -160,16 +161,26 @@ Right-click any segment (or multi-selection) in the spectrogram to open the cont
 
 ---
 
-## 5. Editing Samples
+## 5. Tool Modes
 
-### 5.1 Basics
+The left toolbar provides three tool modes that control how you interact with the spectrogram:
+
+- **Select** (pointer icon): Click on samples to select them, or drag a selection box to select multiple samples. Works with `Ctrl`-click to toggle selection and `Shift`-click to extend selection. This is the default mode.
+- **Edit** (pencil icon): Click and drag samples to move them, or drag the left/right edges to resize. Only available when Edit mode is active.
+- **Create** (plus icon): Click and drag on empty space in the spectrogram to create new sample regions. Only available when Create mode is active.
+
+Only one tool mode can be active at a time. The active mode is indicated by the highlighted button in the toolbar. Switching modes cancels any ongoing drag/resize/create operations.
+
+## 6. Editing Samples
+
+### 6.1 Basics
 
 - Drag inside a region to move it across the timeline.
 - Drag handles to adjust boundaries. Hold `Shift` to temporarily ignore snapping.
 - Draw a new sample by clicking an empty area and dragging.
 - Delete with the `Delete` key or the table’s Delete action.
 
-### 5.2 Precision Tools
+### 6.2 Precision Tools
 
 - **Remove All Overlaps / Remove All Duplicates / Merge All Overlaps (Edit menu)** – Clean up detection results by removing overlapping or duplicate samples, or merging overlaps. Remove All Overlaps keeps the earliest-starting sample in each overlap group. Remove All Duplicates removes samples whose start/end times are within 5 ms of another sample, keeping one per set. Merge All Overlaps combines each overlap group into a single sample spanning from the earliest start time to the latest end time. These actions are automatically disabled when no overlaps or duplicates are detected.
 
@@ -180,7 +191,7 @@ Right-click any segment (or multi-selection) in the spectrogram to open the cont
 - **Lock duration on start edit** – Maintains length while you reposition start time (toggle in Edit menu).
 - **Auto Sample Order** – Re-rank samples by priority after manual edits.
 
-### 5.3 Grid Snapping
+### 6.3 Grid Snapping
 
 Open **View → Grid Settings** to control:
 

@@ -16,6 +16,7 @@ from PySide6.QtWidgets import QMenu, QVBoxLayout, QWidget
 from spectrosampler.detectors.base import Segment
 from spectrosampler.gui.grid_manager import GridManager
 from spectrosampler.gui.spectrogram_tiler import SpectrogramTiler
+from spectrosampler.gui.toolbar import ToolMode
 
 logger = logging.getLogger(__name__)
 
@@ -96,6 +97,9 @@ class SpectrogramWidget(QWidget):
         self._grid_manager = GridManager()
         self._show_disabled: bool = True
 
+        # Tool mode
+        self._tool_mode = ToolMode.SELECT
+
         # Interaction state
         self._dragging = False
         self._drag_start_pos: QPoint | None = None
@@ -110,6 +114,11 @@ class SpectrogramWidget(QWidget):
         self._last_click_time = 0.0
         self._last_click_time_pos: QPoint | None = None
         self._last_clicked_index: int | None = None
+
+        # Selection box state (for Select mode)
+        self._selecting = False
+        self._selection_box_start_time = 0.0
+        self._selection_box_end_time = 0.0
 
         # Pending changes for deferred updates
         self._pending_drag_start: float | None = None
@@ -486,6 +495,58 @@ class SpectrogramWidget(QWidget):
             show: True to show disabled samples (with visual indication).
         """
         self._show_disabled = bool(show)
+        self._update_overlays_only()
+
+    def set_tool_mode(self, mode: ToolMode) -> None:
+        """Set current tool mode.
+
+        Args:
+            mode: ToolMode enum value.
+        """
+        # Cancel any ongoing operations when switching modes
+        if (
+            self._dragging
+            or self._resizing_left
+            or self._resizing_right
+            or self._creating_sample
+            or self._selecting
+        ):
+            # Restore original segment positions if dragging/resizing
+            if (
+                self._dragging or self._resizing_left or self._resizing_right
+            ) and self._selected_index is not None:
+                if (
+                    self._original_segment_start is not None
+                    and self._original_segment_end is not None
+                ):
+                    seg = self._segments[self._selected_index]
+                    seg.start = self._original_segment_start
+                    seg.end = self._original_segment_end
+            # Clear all pending state
+            self._pending_drag_start = None
+            self._pending_drag_end = None
+            self._pending_resize_start = None
+            self._pending_resize_end = None
+            self._pending_create_start = None
+            self._pending_create_end = None
+            # Reset interaction states
+            self._dragging = False
+            self._resizing_left = False
+            self._resizing_right = False
+            self._creating_sample = False
+            self._selecting = False
+            self._drag_start_pos = None
+            self._original_segment_start = None
+            self._original_segment_end = None
+            # Cancel any pending drag timer
+            if self._drag_start_timer is not None:
+                self._drag_start_timer.stop()
+                self._drag_start_timer = None
+                self._pending_drag_operation = None
+                self._pending_drag_index = None
+                self._pending_drag_click_time = None
+
+        self._tool_mode = mode
         self._update_overlays_only()
 
     def set_audio_path(self, audio_path: Path | None) -> None:
@@ -896,9 +957,10 @@ class SpectrogramWidget(QWidget):
                 )
                 self._segment_artists.extend([marker_top, marker_bottom])
 
-        # Preview rectangle for sample creation
+        # Preview rectangle for sample creation (Create mode)
         if (
-            self._creating_sample
+            self._tool_mode == ToolMode.CREATE
+            and self._creating_sample
             and self._pending_create_start is not None
             and self._pending_create_end is not None
         ):
@@ -917,6 +979,42 @@ class SpectrogramWidget(QWidget):
                     edgecolor="white",
                     linewidth=2,
                     linestyle="--",
+                    zorder=2,
+                )
+                self._ax.add_patch(rect)
+                self._segment_artists.append(rect)
+
+        # Selection box (Select mode)
+        if (
+            self._tool_mode == ToolMode.SELECT
+            and self._selecting
+            and self._selection_box_start_time is not None
+            and self._selection_box_end_time is not None
+        ):
+            # Ensure box_start is always less than box_end, even when dragging right to left
+            raw_start = min(self._selection_box_start_time, self._selection_box_end_time)
+            raw_end = max(self._selection_box_start_time, self._selection_box_end_time)
+            box_start = max(raw_start, self._start_time)
+            box_end = min(raw_end, self._end_time)
+            if box_end > box_start:
+                from matplotlib.patches import Rectangle
+
+                ylim = self._ax.get_ylim()
+                selection_color = self._theme_colors.get(
+                    "selection", QColor(0xEF, 0x7F, 0x22, 0xA0)
+                )
+                selection_border = self._theme_colors.get(
+                    "selection_border", QColor(0xEF, 0x7F, 0x22)
+                )
+                rect = Rectangle(
+                    (box_start, ylim[0]),
+                    box_end - box_start,
+                    ylim[1] - ylim[0],
+                    alpha=0.2,
+                    facecolor=self._color_to_hex(selection_color),
+                    edgecolor=self._color_to_hex(selection_border),
+                    linewidth=2,
+                    linestyle="-",
                     zorder=2,
                 )
                 self._ax.add_patch(rect)
@@ -1128,68 +1226,91 @@ class SpectrogramWidget(QWidget):
 
             time = max(self._start_time, min(time, self._end_time))
 
+            modifiers = (
+                event.guiEvent.modifiers()
+                if getattr(event, "guiEvent", None) is not None
+                else Qt.KeyboardModifier.NoModifier
+            )
+            ctrl_pressed = bool(modifiers & Qt.KeyboardModifier.ControlModifier)
+            shift_pressed = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
+
             # Check if clicking on a segment
             clicked_index = self._find_segment_at_time(time)
-            if clicked_index is not None:
-                modifiers = (
-                    event.guiEvent.modifiers()
-                    if getattr(event, "guiEvent", None) is not None
-                    else Qt.KeyboardModifier.NoModifier
-                )
-                ctrl_pressed = bool(modifiers & Qt.KeyboardModifier.ControlModifier)
-                shift_pressed = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
 
-                self.handle_selection_click(
-                    clicked_index,
-                    ctrl=ctrl_pressed,
-                    shift=shift_pressed,
-                )
-
-                # Check if clicking on resize handle
-                seg = self._segments[clicked_index]
-                # Store original segment values for ESC cancellation
-                self._original_segment_start = seg.start
-                self._original_segment_end = seg.end
-                handle_width = self._get_handle_width()
-
-                # Cancel any pending drag timer
-                if self._drag_start_timer is not None:
-                    self._drag_start_timer.stop()
-                    self._drag_start_timer = None
-
-                # Determine operation type and start timer
-                if abs(time - seg.start) < handle_width:
-                    # Will resize left edge
-                    self._pending_drag_operation = "resize_left"
-                    self._pending_drag_index = clicked_index
-                    self._pending_drag_click_time = time
-                    # Start timer to delay actual resize start
-                    self._drag_start_timer = QTimer(self)
-                    self._drag_start_timer.setSingleShot(True)
-                    self._drag_start_timer.timeout.connect(self._on_drag_timer_expired)
-                    self._drag_start_timer.start(self._min_hold_duration_ms)
-                elif abs(time - seg.end) < handle_width:
-                    # Will resize right edge
-                    self._pending_drag_operation = "resize_right"
-                    self._pending_drag_index = clicked_index
-                    self._pending_drag_click_time = time
-                    # Start timer to delay actual resize start
-                    self._drag_start_timer = QTimer(self)
-                    self._drag_start_timer.setSingleShot(True)
-                    self._drag_start_timer.timeout.connect(self._on_drag_timer_expired)
-                    self._drag_start_timer.start(self._min_hold_duration_ms)
+            if self._tool_mode == ToolMode.SELECT:
+                # Select mode: handle selection (click or drag box)
+                if clicked_index is not None:
+                    # Click on segment: handle selection with CTRL/SHIFT
+                    self.handle_selection_click(
+                        clicked_index,
+                        ctrl=ctrl_pressed,
+                        shift=shift_pressed,
+                    )
                 else:
-                    # Will drag segment
-                    self._pending_drag_operation = "drag"
-                    self._pending_drag_index = clicked_index
-                    self._pending_drag_click_time = time
-                    # Start timer to delay actual drag start
-                    self._drag_start_timer = QTimer(self)
-                    self._drag_start_timer.setSingleShot(True)
-                    self._drag_start_timer.timeout.connect(self._on_drag_timer_expired)
-                    self._drag_start_timer.start(self._min_hold_duration_ms)
-            else:
-                # Start creating new sample (no delay needed)
+                    # Start drag selection box
+                    if not ctrl_pressed and not shift_pressed:
+                        # Clear selection if not using modifiers
+                        self._apply_selection(set(), None, None)
+                    self._selecting = True
+                    self._selection_box_start_time = time
+                    self._selection_box_end_time = time
+                self._update_overlays_only()
+                return
+
+            if clicked_index is not None:
+                # Edit mode: handle selection first, then allow drag/resize
+                if self._tool_mode == ToolMode.EDIT:
+                    self.handle_selection_click(
+                        clicked_index,
+                        ctrl=ctrl_pressed,
+                        shift=shift_pressed,
+                    )
+
+                    # Check if clicking on resize handle
+                    seg = self._segments[clicked_index]
+                    # Store original segment values for ESC cancellation
+                    self._original_segment_start = seg.start
+                    self._original_segment_end = seg.end
+                    handle_width = self._get_handle_width()
+
+                    # Cancel any pending drag timer
+                    if self._drag_start_timer is not None:
+                        self._drag_start_timer.stop()
+                        self._drag_start_timer = None
+
+                    # Edit mode: determine operation type and start timer
+                    if abs(time - seg.start) < handle_width:
+                        # Will resize left edge
+                        self._pending_drag_operation = "resize_left"
+                        self._pending_drag_index = clicked_index
+                        self._pending_drag_click_time = time
+                        # Start timer to delay actual resize start
+                        self._drag_start_timer = QTimer(self)
+                        self._drag_start_timer.setSingleShot(True)
+                        self._drag_start_timer.timeout.connect(self._on_drag_timer_expired)
+                        self._drag_start_timer.start(self._min_hold_duration_ms)
+                    elif abs(time - seg.end) < handle_width:
+                        # Will resize right edge
+                        self._pending_drag_operation = "resize_right"
+                        self._pending_drag_index = clicked_index
+                        self._pending_drag_click_time = time
+                        # Start timer to delay actual resize start
+                        self._drag_start_timer = QTimer(self)
+                        self._drag_start_timer.setSingleShot(True)
+                        self._drag_start_timer.timeout.connect(self._on_drag_timer_expired)
+                        self._drag_start_timer.start(self._min_hold_duration_ms)
+                    else:
+                        # Will drag segment
+                        self._pending_drag_operation = "drag"
+                        self._pending_drag_index = clicked_index
+                        self._pending_drag_click_time = time
+                        # Start timer to delay actual drag start
+                        self._drag_start_timer = QTimer(self)
+                        self._drag_start_timer.setSingleShot(True)
+                        self._drag_start_timer.timeout.connect(self._on_drag_timer_expired)
+                        self._drag_start_timer.start(self._min_hold_duration_ms)
+            elif self._tool_mode == ToolMode.CREATE:
+                # Create mode: start creating new sample (no delay needed)
                 if self._selected_indexes:
                     self._apply_selection(set(), None, None)
                 self.sample_create_started.emit()
@@ -1303,7 +1424,11 @@ class SpectrogramWidget(QWidget):
                 # Clear pending state
                 self._pending_resize_start = None
                 self._pending_resize_end = None
-            elif self._creating_sample and event.xdata is not None:
+            elif (
+                self._tool_mode == ToolMode.CREATE
+                and self._creating_sample
+                and event.xdata is not None
+            ):
                 time = max(self._start_time, min(event.xdata, self._end_time))
                 if abs(time - self._create_start_time) > 0.01:  # Minimum 10ms
                     start = min(self._create_start_time, time)
@@ -1316,12 +1441,64 @@ class SpectrogramWidget(QWidget):
                 # Clear pending state
                 self._pending_create_start = None
                 self._pending_create_end = None
+            elif self._tool_mode == ToolMode.SELECT and self._selecting and event.xdata is not None:
+                # Finalize selection box
+                time = max(self._start_time, min(event.xdata, self._end_time))
+                box_start = min(self._selection_box_start_time, time)
+                box_end = max(self._selection_box_start_time, time)
+                # Find all segments that overlap with the selection box
+                selected_indexes = set()
+                for i, seg in enumerate(self._segments):
+                    # Check if segment overlaps with selection box
+                    seg_start = min(seg.start, seg.end)
+                    seg_end = max(seg.start, seg.end)
+                    if not (seg_end < box_start or seg_start > box_end):
+                        selected_indexes.add(i)
+                # Apply selection (with CTRL/SHIFT modifiers if needed)
+                modifiers = (
+                    event.guiEvent.modifiers()
+                    if getattr(event, "guiEvent", None) is not None
+                    else Qt.KeyboardModifier.NoModifier
+                )
+                ctrl_pressed = bool(modifiers & Qt.KeyboardModifier.ControlModifier)
+                shift_pressed = bool(modifiers & Qt.KeyboardModifier.ShiftModifier)
+                if ctrl_pressed:
+                    # Toggle selection
+                    new_selection = set(self._selected_indexes)
+                    for idx in selected_indexes:
+                        if idx in new_selection:
+                            new_selection.remove(idx)
+                        else:
+                            new_selection.add(idx)
+                    if new_selection:
+                        anchor = sorted(new_selection)[-1]
+                        self._apply_selection(new_selection, anchor, anchor)
+                    else:
+                        self._apply_selection(set(), None, None)
+                elif shift_pressed:
+                    # Extend selection
+                    new_selection = set(self._selected_indexes)
+                    new_selection.update(selected_indexes)
+                    if new_selection:
+                        anchor = sorted(new_selection)[-1]
+                        self._apply_selection(new_selection, anchor, anchor)
+                else:
+                    # Replace selection
+                    if selected_indexes:
+                        anchor = sorted(selected_indexes)[-1]
+                        self._apply_selection(selected_indexes, anchor, anchor)
+                    else:
+                        self._apply_selection(set(), None, None)
+                self._selecting = False
+                self._selection_box_start_time = 0.0
+                self._selection_box_end_time = 0.0
 
             # Reset all interaction states
             self._dragging = False
             self._resizing_left = False
             self._resizing_right = False
             self._creating_sample = False
+            self._selecting = False
             self._drag_start_pos = None
             self._original_segment_start = None
             self._original_segment_end = None
@@ -1357,17 +1534,27 @@ class SpectrogramWidget(QWidget):
 
         time = max(self._start_time, min(event.xdata, self._end_time))
 
-        # Update cursor based on hover
+        # Update cursor based on hover and tool mode
         if not (
-            self._dragging or self._resizing_left or self._resizing_right or self._creating_sample
+            self._dragging
+            or self._resizing_left
+            or self._resizing_right
+            or self._creating_sample
+            or self._selecting
         ):
-            clicked_index = self._find_segment_at_time(time)
-            handle = self._check_handle_hover(time, clicked_index)
-            if handle != self._hover_handle:
-                self._hover_handle = handle
-                if handle == "left" or handle == "right":
-                    self._canvas.setCursor(Qt.CursorShape.SizeHorCursor)
-                else:
+            if self._tool_mode == ToolMode.EDIT:
+                clicked_index = self._find_segment_at_time(time)
+                handle = self._check_handle_hover(time, clicked_index)
+                if handle != self._hover_handle:
+                    self._hover_handle = handle
+                    if handle == "left" or handle == "right":
+                        self._canvas.setCursor(Qt.CursorShape.SizeHorCursor)
+                    else:
+                        self._canvas.setCursor(Qt.CursorShape.ArrowCursor)
+            else:
+                # Select or Create mode: use arrow cursor
+                if self._hover_handle:
+                    self._hover_handle = None
                     self._canvas.setCursor(Qt.CursorShape.ArrowCursor)
 
         if self._dragging and self._selected_index is not None:
@@ -1431,7 +1618,7 @@ class SpectrogramWidget(QWidget):
             self._pending_resize_end = new_end
             seg.end = new_end  # Update visual preview
             self._update_overlays_only()
-        elif self._creating_sample:
+        elif self._tool_mode == ToolMode.CREATE and self._creating_sample:
             # Update create preview bounds
             if event.xdata is not None:
                 end_time = max(self._start_time, min(event.xdata, self._end_time))
@@ -1439,6 +1626,12 @@ class SpectrogramWidget(QWidget):
                 end = max(self._create_start_time, end_time)
                 self._pending_create_start = start
                 self._pending_create_end = end
+                self._update_overlays_only()
+        elif self._tool_mode == ToolMode.SELECT and self._selecting:
+            # Update selection box bounds
+            if event.xdata is not None:
+                end_time = max(self._start_time, min(event.xdata, self._end_time))
+                self._selection_box_end_time = end_time
                 self._update_overlays_only()
 
     def _on_wheel(self, event) -> None:

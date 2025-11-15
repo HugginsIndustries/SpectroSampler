@@ -117,12 +117,6 @@ _Summary: P0: 0 items, P1: 19 items, P2: 12 items_
   - Acceptance: The three-choice dialog appears; append preserves timing alignment.
 
 #### Editing Workflow
-- [ ] [P1] Implement tool modes for spectrogram interaction (Select/Edit/Create)
-  - Implement three distinct tool modes similar to modern DAW software: "Select" (allows drag selection of samples compatible with CTRL/SHIFT selection and existing click + CTRL/SHIFT click selection), "Edit" (allows current editing behavior: dragging samples/edges), and "Create" (allows current click drag adding of samples).
-  - When each mode is active, all other modes are disabled, allowing the user to select exactly what action they want to do.
-  - Toolbar widget has been added to the left side panel (replacing detection settings panel, which moved to dialog). Toolbar contains a "Tool" group box with three icon-only buttons (Select/pointer, Edit/pencil, Create/add) that are checkable and mutually exclusive via QButtonGroup. Buttons currently function as visual placeholders only; tool mode behavior is not yet implemented.
-  - Ensure feature integrates with all existing functionality (undo/redo, ESC cancellation, context menus, keyboard shortcuts, etc.).
-  - Acceptance: Select mode enables drag selection box; Edit mode enables sample drag/resize; Create mode enables sample creation; only one mode active at a time; all existing features work correctly in each mode; toolbar buttons reflect active mode. [Docs Impact]
 - [ ] [P1] Add temporary grid snap on Ctrl+drag for sample clips and edges
   - Hold Ctrl while dragging sample clips or resizing clip edges to temporarily snap to grid, even when grid snapping is disabled globally.
   - Snapping applies during drag/resize operations and releases when Ctrl is released or mouse button is released.

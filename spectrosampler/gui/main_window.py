@@ -71,7 +71,7 @@ from spectrosampler.gui.settings import SettingsManager
 from spectrosampler.gui.spectrogram_tiler import SpectrogramTile, SpectrogramTiler
 from spectrosampler.gui.spectrogram_widget import SpectrogramWidget
 from spectrosampler.gui.theme import ThemeManager
-from spectrosampler.gui.toolbar import ToolbarWidget
+from spectrosampler.gui.toolbar import ToolbarWidget, ToolMode
 from spectrosampler.gui.waveform_manager import WaveformData, WaveformManager
 from spectrosampler.gui.waveform_widget import WaveformWidget
 from spectrosampler.pipeline_settings import ProcessingSettings
@@ -268,6 +268,8 @@ class MainWindow(QMainWindow):
 
         # Spectrogram widget
         self._spectrogram_widget = SpectrogramWidget()
+        # Set initial tool mode
+        self._spectrogram_widget.set_tool_mode(ToolMode.SELECT)
         self._spectrogram_widget.sample_selected.connect(self._on_sample_selected)
         self._spectrogram_widget.sample_moved.connect(self._on_sample_moved)
         self._spectrogram_widget.sample_resized.connect(self._on_sample_resized)
@@ -811,6 +813,9 @@ class MainWindow(QMainWindow):
 
     def _connect_signals(self) -> None:
         """Connect signals."""
+        # Toolbar - tool mode changes
+        self._toolbar.mode_changed.connect(self._on_tool_mode_changed)
+
         # Spectrogram widget - operation start signals for undo
         self._spectrogram_widget.sample_drag_started.connect(self._on_sample_drag_started)
         self._spectrogram_widget.sample_resize_started.connect(self._on_sample_resize_started)
@@ -2310,6 +2315,18 @@ class MainWindow(QMainWindow):
         self._sync_table_selection_from_state()
 
         self._update_zoom_selection_action()
+
+    def _on_tool_mode_changed(self, mode_str: str) -> None:
+        """Handle tool mode change from toolbar.
+
+        Args:
+            mode_str: Tool mode as string ("select", "edit", or "create").
+        """
+        try:
+            mode = ToolMode(mode_str)
+            self._spectrogram_widget.set_tool_mode(mode)
+        except (ValueError, TypeError) as exc:
+            logger.debug("Invalid tool mode string: %s", mode_str, exc_info=exc)
 
     def _on_sample_selected(self, index: int) -> None:
         """Handle sample selection index notifications from the spectrogram."""

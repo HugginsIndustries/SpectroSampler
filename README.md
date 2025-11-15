@@ -109,6 +109,10 @@ spectrosampler-gui --version          Show version and exit
 6. If new detections overlap existing samples, the Overlap Resolution dialog lets you choose to discard overlaps, discard duplicates, or keep all (with "remember my choice").
 
 ### Reviewing & Editing
+- **Tool Modes**: Use the toolbar buttons (left panel) to switch between three interaction modes:
+  - **Select** (default): Click or drag a selection box to select samples. Compatible with `Ctrl`-click to toggle and `Shift`-click to extend selection.
+  - **Edit**: Drag samples to move them, or drag their edges to resize. Only one mode is active at a time.
+  - **Create**: Click and drag on empty space to create new sample regions.
 - Select samples in the spectrogram or info table (they stay in sync).
 - Use `Ctrl`-click to toggle additional samples and `Shift`-click to extend the selection in both views for bulk zooming, editing, and export operations.
 - Enable the sample player's Auto-play Next toggle to queue the next enabled sample automatically when playback ends; Loop still takes precedence when you need to rehearse a single segment.
